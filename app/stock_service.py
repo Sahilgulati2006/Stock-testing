@@ -2,7 +2,7 @@ import yfinance as yf
 from datetime import date, timedelta
 import pandas as pd
 from polygon import RESTClient
-from config import Config
+from app.config import Config
 
 client = RESTClient(Config.POLYGON_API_KEY)
 

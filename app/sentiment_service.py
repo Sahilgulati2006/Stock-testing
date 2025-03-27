@@ -4,7 +4,8 @@ from collections import defaultdict, Counter
 from transformers import pipeline, AutoTokenizer
 from datetime import date
 import pandas as pd
-from .config import Config
+import os
+from app.config import Config
 
 # Initialize sentiment analyzer
 sentiment_analyzer = pipeline("sentiment-analysis", model=Config.SENTIMENT_MODEL)
@@ -23,7 +24,9 @@ class SentimentService:
     
     def _load_nasdaq_tickers(self):
         """Load NASDAQ tickers from CSV"""
-        df = pd.read_csv(Config.NASDAQ_LIST_PATH)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        nasdaq_path = os.path.join(current_dir, 'nasdaq-listed.csv')
+        df = pd.read_csv(nasdaq_path)
         return [str(ticker).strip() for ticker in df['Symbol'].dropna().tolist()]
     
     def _split_text_into_chunks(self, text, max_length=510):

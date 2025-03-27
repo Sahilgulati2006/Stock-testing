@@ -1,6 +1,6 @@
 from flask import Flask
-from main_routes import main
-from config import Config
+from app.main_routes import main
+from app.config import Config
 
 def create_app():
     app = Flask(__name__)

@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, request, jsonify
-from stock_service import StockService
-from sentiment_service import SentimentService
+from app.stock_service import StockService
+from app.sentiment_service import SentimentService
 from datetime import date, timedelta
 import yfinance as yf
 
