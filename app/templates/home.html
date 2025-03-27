@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <h2 class="text-center mb-4">Stock Analysis Tool</h2>
+        <form method="POST" action="{{ url_for('main.analyze') }}">
+            <div class="input-group mb-3">
+                <input type="text" class="form-control" name="ticker" placeholder="Enter stock ticker (e.g., AAPL)" required>
+                <button class="btn btn-primary" type="submit">Analyze</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="row mt-5">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Reddit Sentiment Analysis</h5>
+            </div>
+            <div class="card-body">
+                <p>Analyze stock sentiment from Reddit discussions</p>
+                <a href="{{ url_for('main.sentiment_analysis') }}" class="btn btn-outline-primary">Go to Sentiment Analysis</a>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5>Portfolio Analysis</h5>
+            </div>
+            <div class="card-body">
+                <p>Analyze your stock portfolio performance</p>
+                <a href="{{ url_for('main.portfolio_analysis') }}" class="btn btn-outline-primary">Go to Portfolio Analysis</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

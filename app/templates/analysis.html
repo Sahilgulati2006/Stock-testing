@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <h2>{{ ticker }} Analysis</h2>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Fundamental Data</h4>
+            </div>
+            <div class="card-body">
+                {% if fundamentals %}
+                    <h5>{{ fundamentals.get('name', 'N/A') }}</h5>
+                    <p><strong>Industry:</strong> {{ fundamentals.get('industry', 'N/A') }}</p>
+                    <p><strong>Market Cap:</strong> ${{ "{:,.2f}".format(fundamentals.get('market_cap', 0)) }}</p>
+                    <p>{{ fundamentals.get('description', 'No description available') }}</p>
+                {% else %}
+                    <p>No fundamental data available</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4>Price Chart</h4>
+                    </div>
+                    <div class="card-body">
+                        <div id="priceChart"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h4>Fibonacci Levels</h4>
+                    </div>
+                    <div class="card-body">
+                        {% if fib_levels %}
+                        <ul class="list-group">
+                            {% for level, value in fib_levels.items() %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ level }}
+                                <span class="badge bg-primary rounded-pill">{{ "{:.2f}".format(value) }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p>No Fibonacci levels calculated</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4>Recent News</h4>
+            </div>
+            <div class="card-body">
+                {% if news %}
+                    {% for item in news %}
+                    <div class="mb-3">
+                        <h6>{{ item.get('title', 'No title') }}</h6>
+                        <small class="text-muted">{{ item.get('published', 'No date') }}</small>
+                        <p>{{ item.get('description', 'No description') }}</p>
+                    </div>
+                    {% if not loop.last %}<hr>{% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p>No recent news available</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Plotly chart for stock data
+    const stockData = {{ stock_data|tojson|safe }};
+    
+    // Check if data exists and has the expected structure
+    if (stockData && stockData.length > 0) {
+        const dates = stockData.map(item => item.Date || item.date);
+        const closes = stockData.map(item => item.Close || item.close);
+        const ema20 = stockData.map(item => item.EMA_20 || (item.ema_20 || null));
+        const ema50 = stockData.map(item => item.EMA_50 || (item.ema_50 || null));
+        
+        // Filter out null values
+        const validData = dates.map((date, i) => ({
+            date,
+            close: closes[i],
+            ema20: ema20[i],
+            ema50: ema50[i]
+        })).filter(item => item.close !== undefined && item.close !== null);
+        
+        const priceTrace = {
+            x: validData.map(item => item.date),
+            y: validData.map(item => item.close),
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Close Price',
+            line: {color: 'blue'}
+        };
+        
+        const traces = [priceTrace];
+        
+        // Add EMA traces if they exist
+        if (validData.some(item => item.ema20 !== null)) {
+            traces.push({
+                x: validData.map(item => item.date),
+                y: validData.map(item => item.ema20),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'EMA 20',
+                line: {color: 'orange'}
+            });
+        }
+        
+        if (validData.some(item => item.ema50 !== null)) {
+            traces.push({
+                x: validData.map(item => item.date),
+                y: validData.map(item => item.ema50),
+                type: 'scatter',
+                mode: 'lines',
+                name: 'EMA 50',
+                line: {color: 'red'}
+            });
+        }
+        
+        const layout = {
+            title: '{{ ticker }} Price with Moving Averages',
+            xaxis: {title: 'Date'},
+            yaxis: {title: 'Price (USD)'}
+        };
+        
+        Plotly.newPlot('priceChart', traces, layout);
+    } else {
+        console.error('No valid stock data available for chart');
+        document.getElementById('priceChart').innerHTML = '<p class="text-danger">No price data available</p>';
+    }
+</script>
+{% endblock %}
