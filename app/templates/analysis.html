@@ -1,147 +1,204 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="row">
-    <div class="col-12">
-        <h2>{{ ticker }} Analysis</h2>
-        
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4>Fundamental Data</h4>
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <h2 class="mb-4">{{ ticker }} Analysis</h2>
+            
+            {% if error %}
+            <div class="alert alert-danger" role="alert">
+                {{ error }}
             </div>
-            <div class="card-body">
-                {% if fundamentals %}
-                    <h5>{{ fundamentals.get('name', 'N/A') }}</h5>
-                    <p><strong>Industry:</strong> {{ fundamentals.get('industry', 'N/A') }}</p>
-                    <p><strong>Market Cap:</strong> ${{ "{:,.2f}".format(fundamentals.get('market_cap', 0)) }}</p>
-                    <p>{{ fundamentals.get('description', 'No description available') }}</p>
-                {% else %}
-                    <p>No fundamental data available</p>
-                {% endif %}
+            {% else %}
+            <!-- Fundamental Data Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Fundamental Data</h4>
+                </div>
+                <div class="card-body">
+                    {% if fundamentals %}
+                        <h5>{{ fundamentals.get('name', 'N/A') }}</h5>
+                        <p><strong>Industry:</strong> {{ fundamentals.get('industry', 'N/A') }}</p>
+                        <p><strong>Market Cap:</strong> {{ fundamentals.get('market_cap', 'N/A') }}</p>
+                        <p>{{ fundamentals.get('description', 'No description available') }}</p>
+                    {% else %}
+                        <p>No fundamental data available</p>
+                    {% endif %}
+                </div>
             </div>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-8">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h4>Price Chart</h4>
+            
+            <div class="row">
+                <!-- Price Chart Card -->
+                <div class="col-md-8">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4 class="mb-0">Price Chart</h4>
+                        </div>
+                        <div class="card-body">
+                            <div id="priceChart" style="height: 400px;"></div>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div id="priceChart"></div>
+                </div>
+                
+                <!-- Fibonacci Levels Card -->
+                <div class="col-md-4">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h4 class="mb-0">Fibonacci Levels</h4>
+                        </div>
+                        <div class="card-body">
+                            {% if fib_levels %}
+                            <ul class="list-group">
+                                {% for level, value in fib_levels.items() %}
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    {{ level }}
+                                    <span class="badge bg-primary rounded-pill">${{ "%.2f"|format(value) }}</span>
+                                </li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p>No Fibonacci levels calculated</p>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-md-4">
-                <div class="card mb-4">
-                    <div class="card-header">
-                        <h4>Fibonacci Levels</h4>
-                    </div>
-                    <div class="card-body">
-                        {% if fib_levels %}
-                        <ul class="list-group">
-                            {% for level, value in fib_levels.items() %}
-                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                {{ level }}
-                                <span class="badge bg-primary rounded-pill">{{ "{:.2f}".format(value) }}</span>
-                            </li>
-                            {% endfor %}
-                        </ul>
-                        {% else %}
-                        <p>No Fibonacci levels calculated</p>
-                        {% endif %}
-                    </div>
+            
+            <!-- News Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h4 class="mb-0">Recent News</h4>
+                </div>
+                <div class="card-body">
+                    {% if news %}
+                        {% for item in news %}
+                        <div class="news-item mb-3">
+                            <h5 class="mb-1">
+                                {% if item.get('url') and item.get('url') != '#' %}
+                                    <a href="{{ item.get('url') }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
+                                        {{ item.get('title', 'No title') }}
+                                        <i class="fas fa-external-link-alt ms-1 small"></i>
+                                    </a>
+                                {% else %}
+                                    {{ item.get('title', 'No title') }}
+                                {% endif %}
+                            </h5>
+                            <small class="text-muted d-block mb-2">
+                                <i class="far fa-clock me-1"></i>
+                                {{ item.get('published', 'No date') }}
+                            </small>
+                            <p class="mb-0">
+                                {% if item.get('description') %}
+                                    {{ item.get('description') }}
+                                    {% if item.get('url') and item.get('url') != '#' %}
+                                        <a href="{{ item.get('url') }}" target="_blank" rel="noopener noreferrer" class="ms-1">Read more</a>
+                                    {% endif %}
+                                {% else %}
+                                    No description available
+                                {% endif %}
+                            </p>
+                        </div>
+                        {% if not loop.last %}<hr class="my-3">{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <div class="alert alert-info mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            No recent news available for {{ ticker }}
+                        </div>
+                    {% endif %}
                 </div>
             </div>
-        </div>
-        
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4>Recent News</h4>
-            </div>
-            <div class="card-body">
-                {% if news %}
-                    {% for item in news %}
-                    <div class="mb-3">
-                        <h6>{{ item.get('title', 'No title') }}</h6>
-                        <small class="text-muted">{{ item.get('published', 'No date') }}</small>
-                        <p>{{ item.get('description', 'No description') }}</p>
-                    </div>
-                    {% if not loop.last %}<hr>{% endif %}
-                    {% endfor %}
-                {% else %}
-                    <p>No recent news available</p>
-                {% endif %}
-            </div>
+            {% endif %}
         </div>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
+{% if not error %}
+<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
 <script>
-    // Plotly chart for stock data
-    const stockData = {{ stock_data|tojson|safe }};
-    
-    // Check if data exists and has the expected structure
-    if (stockData && stockData.length > 0) {
-        const dates = stockData.map(item => item.Date || item.date);
-        const closes = stockData.map(item => item.Close || item.close);
-        const ema20 = stockData.map(item => item.EMA_20 || (item.ema_20 || null));
-        const ema50 = stockData.map(item => item.EMA_50 || (item.ema_50 || null));
-        
-        // Filter out null values
-        const validData = dates.map((date, i) => ({
-            date,
-            close: closes[i],
-            ema20: ema20[i],
-            ema50: ema50[i]
-        })).filter(item => item.close !== undefined && item.close !== null);
-        
-        const priceTrace = {
-            x: validData.map(item => item.date),
-            y: validData.map(item => item.close),
-            type: 'scatter',
-            mode: 'lines',
-            name: 'Close Price',
-            line: {color: 'blue'}
-        };
-        
-        const traces = [priceTrace];
-        
-        // Add EMA traces if they exist
-        if (validData.some(item => item.ema20 !== null)) {
-            traces.push({
-                x: validData.map(item => item.date),
-                y: validData.map(item => item.ema20),
+(function() {
+    // Safely get data from template
+    var stockData = JSON.parse('{{ stock_data|tojson|safe }}');
+    var tickerSymbol = '{{ ticker }}';
+
+    document.addEventListener('DOMContentLoaded', function() {
+        if (stockData && stockData.length > 0) {
+            var dates = stockData.map(function(item) { 
+                return item.Date || item.date;
+            });
+            var closes = stockData.map(function(item) {
+                return item.Close || item.close;
+            });
+            var ema20 = stockData.map(function(item) {
+                return item.EMA_20;
+            });
+            var ema50 = stockData.map(function(item) {
+                return item.EMA_50;
+            });
+            
+            var traces = [{
+                x: dates,
+                y: closes,
                 type: 'scatter',
                 mode: 'lines',
-                name: 'EMA 20',
-                line: {color: 'orange'}
-            });
+                name: 'Price',
+                line: { color: '#2196F3', width: 2 }
+            }];
+
+            if (ema20.some(function(val) { return val !== null; })) {
+                traces.push({
+                    x: dates,
+                    y: ema20,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'EMA 20',
+                    line: { color: '#FF9800', width: 1.5 }
+                });
+            }
+
+            if (ema50.some(function(val) { return val !== null; })) {
+                traces.push({
+                    x: dates,
+                    y: ema50,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'EMA 50',
+                    line: { color: '#F44336', width: 1.5 }
+                });
+            }
+
+            var layout = {
+                title: {
+                    text: tickerSymbol + ' Price Chart',
+                    font: { size: 24 }
+                },
+                xaxis: {
+                    title: 'Date',
+                    rangeslider: { visible: false }
+                },
+                yaxis: {
+                    title: 'Price ($)',
+                    tickprefix: '$'
+                },
+                showlegend: true,
+                legend: {
+                    x: 0,
+                    y: 1
+                },
+                margin: { t: 50 },
+                hovermode: 'x unified'
+            };
+
+            Plotly.newPlot('priceChart', traces, layout, {responsive: true});
+        } else {
+            document.getElementById('priceChart').innerHTML = 
+                '<div class="alert alert-warning">No price data available for ' + tickerSymbol + '</div>';
         }
-        
-        if (validData.some(item => item.ema50 !== null)) {
-            traces.push({
-                x: validData.map(item => item.date),
-                y: validData.map(item => item.ema50),
-                type: 'scatter',
-                mode: 'lines',
-                name: 'EMA 50',
-                line: {color: 'red'}
-            });
-        }
-        
-        const layout = {
-            title: '{{ ticker }} Price with Moving Averages',
-            xaxis: {title: 'Date'},
-            yaxis: {title: 'Price (USD)'}
-        };
-        
-        Plotly.newPlot('priceChart', traces, layout);
-    } else {
-        console.error('No valid stock data available for chart');
-        document.getElementById('priceChart').innerHTML = '<p class="text-danger">No price data available</p>';
-    }
+    });
+})();
 </script>
+{% endif %}
 {% endblock %}
