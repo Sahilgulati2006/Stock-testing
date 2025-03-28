@@ -318,45 +318,52 @@
                 <!-- Price Chart Card -->
             <div class="col-md-8">
                 <div class="card mb-4">
-                    <div class="card-header">
-                            <h4 class="mb-0">Price Chart</h4>
-                    </div>
-                    <div class="card-body">
-                            <div id="priceChart" style="height: 400px;"></div>
-                            {% if trend_analysis %}
-                            <div class="mt-4">
-                                <div class="mb-3">
-                                    <h5 class="mb-3">Current Trend Analysis</h5>
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <strong>Trend</strong>
-                                        <strong>RSI</strong>
-                                        <strong>EMA Signal</strong>
-                                    </div>
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <span class="badge {% if trend_analysis.current_trend == 'Bullish' %}bg-success{% elif trend_analysis.current_trend == 'Bearish' %}bg-danger{% else %}bg-warning{% endif %} p-2">
-                                            {{ trend_analysis.current_trend }}
-                                        </span>
-                                        <span class="badge {% if trend_analysis.rsi_signal == 'Oversold' %}bg-success{% elif trend_analysis.rsi_signal == 'Overbought' %}bg-danger{% else %}bg-warning{% endif %} p-2">
-                                            {{ trend_analysis.rsi_value }} ({{ trend_analysis.rsi_signal }})
-                                        </span>
-                                        <span class="badge {% if trend_analysis.ema_signal == 'Bullish' %}bg-success{% else %}bg-danger{% endif %} p-2">
-                                            {{ trend_analysis.ema_signal }}
-                                        </span>
-                                    </div>
-                                    {% if trend_analysis.cross_alert %}
-                                    <div class="alert alert-info mt-3 mb-0 py-2">
-                                        <i class="fas fa-info-circle me-2"></i>
-                                        <span class="text-{% if 'bullish' in trend_analysis.cross_alert %}success{% else %}danger{% endif %}">
-                                            {{ trend_analysis.cross_alert }}
-                                        </span>
-                                    </div>
-                                    {% endif %}
-                                </div>
-                            </div>
-                            {% endif %}
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Price Chart</h4>
+                        <div class="btn-group">
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleChartType('line')">Line</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleChartType('candlestick')">Candlestick</button>
+                            <button class="btn btn-sm btn-outline-primary" onclick="toggleIndicators()">Indicators</button>
                         </div>
                     </div>
+                    <div class="card-body">
+                        <div id="priceChart" style="height: 500px;"></div>
+                        <div id="volumeChart" style="height: 100px;"></div>
+                        <div id="rsiChart" style="height: 100px; display: none;"></div>
+                        {% if trend_analysis %}
+                        <div class="mt-4">
+                            <div class="mb-3">
+                                <h5 class="mb-3">Current Trend Analysis</h5>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <strong>Trend</strong>
+                                    <strong>RSI</strong>
+                                    <strong>EMA Signal</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span class="badge {% if trend_analysis.current_trend == 'Bullish' %}bg-success{% elif trend_analysis.current_trend == 'Bearish' %}bg-danger{% else %}bg-warning{% endif %} p-2">
+                                        {{ trend_analysis.current_trend }}
+                                    </span>
+                                    <span class="badge {% if trend_analysis.rsi_signal == 'Oversold' %}bg-success{% elif trend_analysis.rsi_signal == 'Overbought' %}bg-danger{% else %}bg-warning{% endif %} p-2">
+                                        {{ trend_analysis.rsi_value }} ({{ trend_analysis.rsi_signal }})
+                                    </span>
+                                    <span class="badge {% if trend_analysis.ema_signal == 'Bullish' %}bg-success{% else %}bg-danger{% endif %} p-2">
+                                        {{ trend_analysis.ema_signal }}
+                                    </span>
+                                </div>
+                                {% if trend_analysis.cross_alert %}
+                                <div class="alert alert-info mt-3 mb-0 py-2">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    <span class="text-{% if 'bullish' in trend_analysis.cross_alert %}success{% else %}danger{% endif %}">
+                                        {{ trend_analysis.cross_alert }}
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
+            </div>
                 
                 <!-- Fibonacci Levels Card -->
             <div class="col-md-4">
@@ -491,6 +498,69 @@
                 </div>
             </div>
         </div>
+
+        <!-- Similar Stocks Section -->
+        {% if similar_stocks %}
+        <div class="card mt-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-lightbulb me-2"></i>Similar Stocks You Might Like
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-2"></i>Based on {{ ticker }}'s sector ({{ similar_stocks.sector }}) and industry ({{ similar_stocks.industry }}), you might be interested in these similar companies:
+                    </p>
+                </div>
+                
+                <div class="row">
+                    {% for category_name, category in similar_stocks.categories.items() %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card h-100 {% if category_name == 'growth' %}border-primary{% else %}border-success{% endif %}">
+                            <div class="card-header {% if category_name == 'growth' %}bg-primary{% else %}bg-success{% endif %} text-white">
+                                <h6 class="mb-0">
+                                    {% if category_name == 'growth' %}
+                                        <i class="fas fa-rocket me-2"></i>Growth Focused
+                                    {% else %}
+                                        <i class="fas fa-balance-scale me-2"></i>Value Focused
+                                    {% endif %}
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="list-group list-group-flush">
+                                    {% for stock in category.stocks %}
+                                    <a href="{{ url_for('main.analyze', ticker=stock.symbol) }}" class="list-group-item list-group-item-action">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">{{ stock.symbol }}</h6>
+                                                <small class="text-muted">{{ stock.name }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div class="fw-bold">${{ "%.2f"|format(stock.price) }}</div>
+                                                <small class="{% if stock.change > 0 %}text-success{% else %}text-danger{% endif %}">
+                                                    {{ "%.2f"|format(stock.change) }}%
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </a>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-3">
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>Pro Tip:</strong> Diversifying your portfolio across both growth and value stocks can help balance risk and potential returns.
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {% endif %}
         </div>
     </div>
@@ -505,74 +575,217 @@
     // Safely get data from template
     var stockData = JSON.parse('{{ stock_data|tojson|safe }}');
     var tickerSymbol = '{{ ticker }}';
+    var currentChartType = 'line';
+    var showIndicators = true;
 
-    document.addEventListener('DOMContentLoaded', function() {
-    if (stockData && stockData.length > 0) {
-            var dates = stockData.map(function(item) { 
-                return item.Date || item.date;
-            });
-            var closes = stockData.map(function(item) {
-                return item.Close || item.close;
-            });
-            var ema50 = stockData.map(function(item) {
-                return item.EMA_50;
-            });
-            
-            var traces = [{
-                x: dates,
-                y: closes,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'Price',
-                line: { color: '#2196F3', width: 2 }
-            }];
-
-            if (ema50.some(function(val) { return val !== null; })) {
-            traces.push({
-                    x: dates,
-                    y: ema50,
-                type: 'scatter',
-                mode: 'lines',
-                name: 'EMA 50',
-                    line: { color: '#F44336', width: 1.5 }
-                });
-            }
-
-            var layout = {
-                title: {
-                    text: tickerSymbol + ' Price Chart',
-                    font: { size: 24 }
-                },
-                xaxis: {
-                    title: 'Date',
-                    rangeslider: { visible: false }
-                },
-                yaxis: {
-                    title: 'Price ($)',
-                    tickprefix: '$'
-                },
-                showlegend: true,
-                legend: {
-                    x: 0,
-                    y: 1
-                },
-                margin: { t: 50 },
-                hovermode: 'x unified'
-            };
-
-            Plotly.newPlot('priceChart', traces, layout, {responsive: true});
-    } else {
+    function createCharts() {
+        if (!stockData || stockData.length === 0) {
             document.getElementById('priceChart').innerHTML = 
                 '<div class="alert alert-warning">No price data available for ' + tickerSymbol + '</div>';
+            return;
+        }
+
+        console.log("Total data points:", stockData.length);
+        console.log("Date range:", stockData[0].Date || stockData[0].date, "to", 
+                   stockData[stockData.length-1].Date || stockData[stockData.length-1].date);
+
+        var dates = stockData.map(item => item.Date || item.date);
+        var closes = stockData.map(item => item.Close || item.close);
+        var opens = stockData.map(item => item.Open || item.open);
+        var highs = stockData.map(item => item.High || item.high);
+        var lows = stockData.map(item => item.Low || item.low);
+        var volumes = stockData.map(item => item.Volume || item.volume);
+        var ema20 = stockData.map(item => item.EMA_20);
+        var ema50 = stockData.map(item => item.EMA_50);
+        var ema100 = stockData.map(item => item.EMA_100);
+
+        // Calculate volume colors
+        var volumeColors = closes.map((close, i) => 
+            (i > 0 ? close >= closes[i-1] ? '#26a69a' : '#ef5350' : '#26a69a')
+        );
+
+        // Create traces based on chart type
+        var priceTrace = currentChartType === 'line' ? {
+            x: dates,
+            y: closes,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Price',
+            line: { color: '#2196F3', width: 2 }
+        } : {
+            x: dates,
+            open: opens,
+            high: highs,
+            low: lows,
+            close: closes,
+            type: 'candlestick',
+            name: 'OHLC',
+            increasing: { line: { color: '#26a69a' } },
+            decreasing: { line: { color: '#ef5350' } }
+        };
+
+        var traces = [priceTrace];
+
+        // Add technical indicators if enabled
+        if (showIndicators) {
+            if (ema20.some(val => val !== null)) {
+                traces.push({
+                    x: dates,
+                    y: ema20,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'EMA 20',
+                    line: { color: '#ffd700', width: 1 }
+                });
+            }
+            if (ema50.some(val => val !== null)) {
+                traces.push({
+                    x: dates,
+                    y: ema50,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'EMA 50',
+                    line: { color: '#ff6b6b', width: 1 }
+                });
+            }
+            if (ema100.some(val => val !== null)) {
+                traces.push({
+                    x: dates,
+                    y: ema100,
+                    type: 'scatter',
+                    mode: 'lines',
+                    name: 'EMA 100',
+                    line: { color: '#4caf50', width: 1 }
+                });
+            }
+        }
+
+        // Volume chart
+        var volumeTrace = {
+            x: dates,
+            y: volumes,
+            type: 'bar',
+            name: 'Volume',
+            marker: {
+                color: volumeColors
+            },
+            yaxis: 'y2'
+        };
+
+        // Chart layout
+        var layout = {
+            dragmode: 'zoom',
+            showlegend: true,
+            legend: {
+                x: 0,
+                y: 1,
+                orientation: 'h'
+            },
+            xaxis: {
+                title: 'Date',
+                rangeslider: {
+                    visible: false
+                },
+                gridcolor: '#E5E5E5',
+                zerolinecolor: '#E5E5E5',
+                type: 'date',
+                tickformat: '%Y-%m-%d',
+                range: [
+                    dates[Math.max(0, dates.length - 365)],
+                    dates[dates.length - 1]
+                ],
+                rangeselector: {
+                    buttons: [
+                        {count: 1, label: '1M', step: 'month', stepmode: 'backward'},
+                        {count: 3, label: '3M', step: 'month', stepmode: 'backward'},
+                        {count: 6, label: '6M', step: 'month', stepmode: 'backward'},
+                        {count: 1, label: '1Y', step: 'year', stepmode: 'backward'},
+                        {count: 2, label: '2Y', step: 'year', stepmode: 'backward'},
+                        {step: 'all', label: 'Max'}
+                    ]
+                }
+            },
+            yaxis: {
+                title: 'Price ($)',
+                tickprefix: '$',
+                autorange: true,
+                domain: [0.3, 1],
+                gridcolor: '#E5E5E5',
+                zerolinecolor: '#E5E5E5',
+                rangemode: 'normal',
+                autorangeoptions: {
+                    padding: 0.1,
+                    minrange: 10
+                }
+            },
+            yaxis2: {
+                title: 'Volume',
+                domain: [0, 0.2],
+                showticklabels: false,
+                gridcolor: '#E5E5E5',
+                zerolinecolor: '#E5E5E5'
+            },
+            grid: {
+                rows: 2,
+                columns: 1,
+                pattern: 'independent'
+            },
+            margin: { t: 20, b: 20 },
+            hovermode: 'x unified',
+            plot_bgcolor: '#FFFFFF',
+            paper_bgcolor: '#FFFFFF'
+        };
+
+        // Create the main chart with price and volume
+        Plotly.newPlot('priceChart', [...traces, volumeTrace], layout, {
+            responsive: true,
+            scrollZoom: true,
+            modeBarButtonsToAdd: [
+                'drawline',
+                'drawopenpath',
+                'drawclosedpath',
+                'drawcircle',
+                'drawrect',
+                'eraseshape'
+            ],
+            displaylogo: false,
+            doubleClick: 'reset',
+            modeBarButtonsToRemove: ['autoScale2d', 'resetScale2d'],
+            showTips: true
+        });
+
+        // Add event listeners for legend clicks
+        var chart = document.getElementById('priceChart');
+        chart.on('plotly_legendclick', function(data) {
+            return false; // Prevents toggling trace visibility on legend click
+        });
     }
+
+    // Function to toggle between line and candlestick charts
+    window.toggleChartType = function(type) {
+        currentChartType = type;
+        createCharts();
+    };
+
+    // Function to toggle technical indicators
+    window.toggleIndicators = function() {
+        showIndicators = !showIndicators;
+        createCharts();
+    };
+
+    // Initialize charts when DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        createCharts();
+        console.log("Chart initialized");
     });
 })();
 
+// Initialize tooltips
 document.addEventListener('DOMContentLoaded', function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
+    });
 });
 </script>
 {% endif %}

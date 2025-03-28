@@ -55,17 +55,17 @@ class StockService:
             """Helper function to fetch data from Yahoo Finance"""
             print("\nFalling back to Yahoo Finance API...")
             # Get extra days for better EMA calculation
-            start = start_date - timedelta(days=100)
+            start = start_date - timedelta(days=200)  # Add 200 extra days for better EMA calculation
             data = yf.download(ticker, start=start, end=end_date, progress=False)
             if data.empty:
                 raise ValueError("No data available from Yahoo Finance")
-            print("Successfully fetched data from Yahoo Finance")
+            print(f"Successfully fetched data from Yahoo Finance ({len(data)} days)")
             return data
 
         try:
             print(f"\nFetching stock data for {ticker}")
             end_date = datetime.now()
-            start_date = end_date - timedelta(days=365)  # Get 1 year of data
+            start_date = end_date - timedelta(days=730)  # Get 2 years of data
             print(f"Date range: {start_date.date()} to {end_date.date()}")
             
             # Try Polygon first
@@ -88,10 +88,16 @@ class StockService:
             print(f"DataFrame shape: {df.shape}")
             print(f"Date range in data: {df.index.min().date()} to {df.index.max().date()}")
             print(f"Columns: {df.columns.tolist()}")
-            print(f"Sample of Close prices: {df['Close'].head()}")
             
             if df['Close'].isnull().all():
                 raise ValueError(f"No valid close prices for {ticker}")
+            
+            # Sort the data to ensure it's in chronological order
+            df = df.sort_index()
+            
+            # Ensure we have enough data for technical analysis
+            if len(df) < 100:
+                raise ValueError(f"Insufficient data points for {ticker} (minimum 100 required)")
             
             return df
             
@@ -153,10 +159,8 @@ class StockService:
             # Clean up any NaN values
             df = df.fillna(method='ffill').fillna(method='bfill')
             
-            # Get last 50 days of data
-            result = df.tail(50)
-            print(f"Final processed data shape: {result.shape}")
-            return result
+            print(f"Final processed data shape: {df.shape}")
+            return df
             
         except Exception as e:
             print(f"Error in technical indicators calculation: {str(e)}")
@@ -869,3 +873,104 @@ class StockService:
                 'rsi_value': None,
                 'rsi_signal': "Neutral"
             }
+
+    @staticmethod
+    def get_similar_stocks(ticker):
+        """Get similar stock recommendations based on sector, industry, and market cap"""
+        try:
+            print(f"\nFinding similar stocks for {ticker}")
+            stock = yf.Ticker(ticker)
+            info = stock.info
+            
+            # Get sector and industry
+            sector = info.get('sector', '')
+            industry = info.get('industry', '')
+            market_cap = info.get('marketCap', 0)
+            
+            if not sector or not industry:
+                return None
+                
+            print(f"Finding stocks in {sector} - {industry}")
+            
+            # Define stock categories
+            categories = {
+                'growth': {
+                    'description': 'Growth Focused',
+                    'stocks': []
+                },
+                'value': {
+                    'description': 'Value Focused',
+                    'stocks': []
+                }
+            }
+            
+            # Get similar stocks in the same industry
+            similar_stocks = []
+            
+            # Predefined mappings for major sectors
+            tech_growth = ['NVDA', 'AMD', 'TSMC']
+            tech_value = ['INTC', 'QCOM', 'TXN']
+            
+            finance_growth = ['V', 'MA', 'PYPL']
+            finance_value = ['JPM', 'BAC', 'WFC']
+            
+            consumer_growth = ['AMZN', 'TSLA', 'NKE']
+            consumer_value = ['WMT', 'TGT', 'KO']
+            
+            healthcare_growth = ['MRNA', 'REGN', 'VRTX']
+            healthcare_value = ['JNJ', 'PFE', 'MRK']
+            
+            # Map sectors to stock lists
+            sector_mapping = {
+                'Technology': {
+                    'growth': tech_growth,
+                    'value': tech_value
+                },
+                'Financial Services': {
+                    'growth': finance_growth,
+                    'value': finance_value
+                },
+                'Consumer Cyclical': {
+                    'growth': consumer_growth,
+                    'value': consumer_value
+                },
+                'Healthcare': {
+                    'growth': healthcare_growth,
+                    'value': healthcare_value
+                }
+            }
+            
+            # Get the relevant stock lists for the sector
+            sector_stocks = sector_mapping.get(sector, {})
+            if sector_stocks:
+                categories['growth']['stocks'] = [s for s in sector_stocks['growth'] if s != ticker][:2]
+                categories['value']['stocks'] = [s for s in sector_stocks['value'] if s != ticker][:2]
+                
+                # Get basic info for each stock
+                for category in categories.values():
+                    stock_details = []
+                    for symbol in category['stocks']:
+                        try:
+                            stock_info = yf.Ticker(symbol).info
+                            stock_details.append({
+                                'symbol': symbol,
+                                'name': stock_info.get('shortName', symbol),
+                                'price': stock_info.get('currentPrice', 0),
+                                'change': stock_info.get('regularMarketChangePercent', 0)
+                            })
+                        except Exception as e:
+                            print(f"Error getting info for {symbol}: {str(e)}")
+                            continue
+                    category['stocks'] = stock_details
+                
+                return {
+                    'sector': sector,
+                    'industry': industry,
+                    'categories': categories
+                }
+            
+            return None
+            
+        except Exception as e:
+            print(f"Error finding similar stocks: {str(e)}")
+            return None

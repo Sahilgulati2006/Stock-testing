@@ -11,9 +11,14 @@ main = Blueprint('main', __name__)
 def home():
     return render_template('home.html')
 
-@main.route('/analyze', methods=['POST'])
+@main.route('/analyze', methods=['GET', 'POST'])
 def analyze():
-    ticker = request.form.get('ticker', '').upper()
+    # Get ticker from either POST form data or GET query parameter
+    if request.method == 'POST':
+        ticker = request.form.get('ticker', '').upper()
+    else:
+        ticker = request.args.get('ticker', '').upper()
+    
     print(f"\nStarting analysis for {ticker}")
     
     try:
@@ -38,6 +43,10 @@ def analyze():
         news = StockService.get_stock_news(ticker)
         fundamentals = StockService.get_fundamentals(ticker)
         
+        # Get similar stock recommendations
+        print("Finding similar stocks")
+        similar_stocks = StockService.get_similar_stocks(ticker)
+        
         # Convert DataFrame to records for chart
         print("Converting data for chart display")
         stock_records = []
@@ -45,7 +54,12 @@ def analyze():
             try:
                 record = {
                     'Date': idx.strftime('%Y-%m-%d'),
+                    'Open': float(row['Open']),
+                    'High': float(row['High']),
+                    'Low': float(row['Low']),
                     'Close': float(row['Close']),
+                    'Volume': float(row['Volume']),
+                    'EMA_20': float(row['EMA_20']),
                     'EMA_50': float(row['EMA_50']),
                     'EMA_100': float(row['EMA_100']),
                     'RSI': float(row['RSI'])
@@ -59,6 +73,9 @@ def analyze():
         if not stock_records:
             raise ValueError(f"No valid stock data could be processed for {ticker}")
         
+        # Sort records by date to ensure proper ordering
+        stock_records.sort(key=lambda x: x['Date'])
+        
         print(f"Analysis completed successfully for {ticker}")
         return render_template('analysis.html', 
                              ticker=ticker,
@@ -66,7 +83,8 @@ def analyze():
                              trend_analysis=trend_analysis,
                              fib_levels=fib_levels,
                              news=news,
-                             fundamentals=fundamentals)
+                             fundamentals=fundamentals,
+                             similar_stocks=similar_stocks)
                              
     except Exception as e:
         error_msg = f"Error analyzing {ticker}: {str(e)}"
