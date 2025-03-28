@@ -224,72 +224,101 @@ class StockService:
     
     @staticmethod
     def get_stock_news(ticker, limit=5):
-        """Fetch recent news for a stock"""
+        """Fetch recent news for a stock using Yahoo Finance"""
         try:
-            print(f"\nFetching news for {ticker}")
+            print(f"\nFetching news for {ticker} from Yahoo Finance")
             
-            # Add delay between API calls to avoid rate limits
-            time.sleep(1)
+            # Create a Yahoo Finance ticker object
+            yf_ticker = yf.Ticker(ticker)
             
-            # Try to get news with retries
-            max_retries = 3
-            retry_delay = 2
+            # Get news from Yahoo Finance
+            news_data = yf_ticker.news
             
-            for attempt in range(max_retries):
+            if not news_data:
+                return [{
+                    "title": "No recent news available",
+                    "description": f"No news articles found for {ticker}",
+                    "published": datetime.now().strftime('%Y-%m-%d %H:%M UTC'),
+                    "url": "#",
+                    "source": "Yahoo Finance"
+                }]
+            
+            # Process and format news items
+            news_items = []
+            for item in news_data[:limit]:  # Limit to requested number of items
                 try:
-                    news = client.list_ticker_news(ticker=ticker, limit=20, order='desc', sort='published_utc')  # Get more items to filter
-                    news_items = []
-                    one_month_ago = datetime.now() - timedelta(days=30)
+                    # Get the content dictionary
+                    content = item.get('content', item)  # Some items might be nested under 'content'
                     
-                    for item in news:
-                        # Convert UTC timestamp to datetime
-                        published_date = datetime.fromtimestamp(item.published_utc/1000)
-                        
-                        # Skip if older than a month
-                        if published_date < one_month_ago:
-                            continue
-                            
-                        # Format date for display
-                        formatted_date = published_date.strftime('%Y-%m-%d %H:%M UTC')
-                        
-                        news_item = {
-                            "title": getattr(item, 'title', 'No title available'),
-                            "description": getattr(item, 'description', 'No description available')[:200] + '...',  # Truncate long descriptions
-                            "published": formatted_date,
-                            "url": getattr(item, 'article_url', '#')
-                        }
-                        news_items.append(news_item)
-                        
-                        # Break if we have enough recent news items
-                        if len(news_items) >= limit:
-                            break
-                    
-                    if news_items:
-                        print(f"Successfully fetched {len(news_items)} recent news items for {ticker}")
-                        return news_items
+                    # Get timestamp from pubDate
+                    pub_date = content.get('pubDate')
+                    if pub_date:
+                        try:
+                            # Parse the ISO format date
+                            published_date = datetime.strptime(pub_date, '%Y-%m-%dT%H:%M:%SZ')
+                        except:
+                            published_date = datetime.now()
                     else:
-                        return [{
-                            "title": "No recent news available",
-                            "description": f"No news articles found for {ticker} in the past month",
-                            "published": datetime.now().strftime('%Y-%m-%d %H:%M UTC'),
-                            "url": "#"
-                        }]
+                        published_date = datetime.now()
                     
+                    # Get the publisher
+                    provider = content.get('provider', {})
+                    publisher = provider.get('displayName', 'Yahoo Finance')
+                    
+                    # Get title
+                    title = content.get('title', '').strip()
+                    if not title:
+                        continue
+                    
+                    # Get description/summary
+                    description = content.get('summary', content.get('description', '')).strip()
+                    if not description:
+                        continue
+                        
+                    if len(description) > 200:
+                        description = description[:197] + '...'
+                    
+                    # Get URL - try different possible locations
+                    url = (content.get('canonicalUrl', {}).get('url') or 
+                          content.get('url') or 
+                          content.get('link') or 
+                          content.get('previewUrl'))
+                    
+                    if not url:
+                        continue
+                    
+                    news_item = {
+                        "title": title,
+                        "description": description,
+                        "published": published_date.strftime('%Y-%m-%d %H:%M UTC'),
+                        "url": url,
+                        "source": publisher
+                    }
+                    news_items.append(news_item)
                 except Exception as e:
-                    if attempt < max_retries - 1:
-                        print(f"Attempt {attempt + 1} failed, retrying in {retry_delay} seconds...")
-                        time.sleep(retry_delay)
-                        retry_delay *= 2  # Exponential backoff
-                    else:
-                        raise
+                    print(f"Error processing news item: {str(e)}")
+                    continue
+            
+            if not news_items:
+                return [{
+                    "title": "No valid news available",
+                    "description": f"Could not find any valid news articles for {ticker}",
+                    "published": datetime.now().strftime('%Y-%m-%d %H:%M UTC'),
+                    "url": "#",
+                    "source": "Yahoo Finance"
+                }]
+            
+            print(f"Successfully fetched {len(news_items)} news items for {ticker}")
+            return news_items
             
         except Exception as e:
             print(f"Error fetching news for {ticker}: {str(e)}")
-        return [{
+            return [{
                 "title": "News temporarily unavailable",
                 "description": "We're experiencing some technical difficulties fetching the latest news. Please try again later.",
                 "published": datetime.now().strftime('%Y-%m-%d %H:%M UTC'),
-                "url": "#"
+                "url": "#",
+                "source": "Yahoo Finance"
             }]
     
     @staticmethod
@@ -352,9 +381,21 @@ class StockService:
             score = 0
             max_score = 0
             
+            # Store metrics for time horizon analysis
+            metrics = {
+                'pe_ratio': 0,
+                'peg_ratio': 0,
+                'revenue_growth': 0,
+                'profit_margins': 0,
+                'beta': info.get('beta', 1),
+                'earnings_growth': info.get('earningsGrowth', 0),
+                'recommendation_trend': info.get('recommendationKey', '').lower()
+            }
+            
             # PE Ratio Analysis
             try:
                 pe = float(ratios['PE Ratio'].replace("N/A", "0"))
+                metrics['pe_ratio'] = pe
                 if 0 < pe < 15:
                     analysis.append("✅ PE Ratio indicates stock might be undervalued")
                     score += 1
@@ -370,6 +411,7 @@ class StockService:
             # PEG Ratio Analysis
             try:
                 peg = float(ratios['PEG Ratio'].replace("N/A", "0"))
+                metrics['peg_ratio'] = peg
                 if 0 < peg < 1:
                     analysis.append("✅ PEG Ratio suggests good value relative to growth")
                     score += 1
@@ -400,6 +442,7 @@ class StockService:
             # Revenue Growth
             try:
                 revenue_growth = info.get('revenueGrowth', 0)
+                metrics['revenue_growth'] = revenue_growth
                 if revenue_growth > 0.2:
                     analysis.append("✅ Strong revenue growth (>20%)")
                     score += 1
@@ -415,6 +458,7 @@ class StockService:
             # Profit Margins
             try:
                 profit_margins = info.get('profitMargins', 0)
+                metrics['profit_margins'] = profit_margins
                 if profit_margins > 0.2:
                     analysis.append("✅ Strong profit margins (>20%)")
                     score += 1
@@ -442,7 +486,53 @@ class StockService:
             return {
                 'analysis_points': analysis,
                 'recommendation': recommendation,
-                'score': f"{final_score:.1f}%" if max_score > 0 else "N/A"
+                'score': f"{final_score:.1f}%" if max_score > 0 else "N/A",
+                'metrics': metrics  # Add metrics to the return value
+            }
+
+        def analyze_time_horizon(metrics, info):
+            """Analyze and provide time horizon recommendations"""
+            long_term_score = 0
+            short_term_score = 0
+            
+            # Long-term factors (positive values indicate better long-term outlook)
+            if metrics['revenue_growth'] > 0.1:  # Good revenue growth
+                long_term_score += 2
+            if metrics['earnings_growth'] > 0.1:  # Good earnings growth
+                long_term_score += 2
+            if metrics['profit_margins'] > 0.15:  # Healthy margins
+                long_term_score += 1
+            if 0 < metrics['peg_ratio'] < 1.5:  # Good growth at reasonable price
+                long_term_score += 2
+            
+            # Short-term factors (negative values indicate higher short-term risk)
+            if metrics['beta'] > 1.2:  # High volatility
+                short_term_score -= 1
+            if metrics['pe_ratio'] > 30:  # High valuation
+                short_term_score -= 1
+            if metrics['recommendation_trend'] in ['sell', 'underperform']:
+                short_term_score -= 1
+            
+            # Generate outlook messages
+            long_term_outlook = "Strong AI & data center growth potential positions the stock well for long-term investors."
+            if long_term_score >= 4:
+                long_term_outlook = "Excellent long-term potential with strong growth metrics and healthy fundamentals."
+            elif long_term_score >= 2:
+                long_term_outlook = "Moderate long-term potential with some positive growth indicators."
+            else:
+                long_term_outlook = "Long-term outlook requires careful monitoring of growth metrics."
+
+            short_term_outlook = "High valuation + bearish trend = Short-term volatility expected."
+            if short_term_score < -2:
+                short_term_outlook = "High risk of short-term volatility due to current market conditions and metrics."
+            elif short_term_score < -1:
+                short_term_outlook = "Moderate short-term volatility expected based on current indicators."
+            else:
+                short_term_outlook = "Short-term outlook is relatively stable but monitor market conditions."
+
+            return {
+                'long_term_outlook': long_term_outlook,
+                'short_term_outlook': short_term_outlook
             }
 
         try:
@@ -514,8 +604,17 @@ class StockService:
                     "ratios": calculate_ratios(info)
                 }
                 
-                # Add financial analysis
-                fundamentals.update(analyze_financials(info, fundamentals['ratios']))
+                # Calculate ratios
+                ratios = calculate_ratios(info)
+                fundamentals['ratios'] = ratios
+                
+                # Analyze financials
+                analysis_results = analyze_financials(info, ratios)
+                fundamentals.update(analysis_results)
+                
+                # Add time horizon analysis
+                time_horizon = analyze_time_horizon(analysis_results['metrics'], info)
+                fundamentals.update(time_horizon)
                 
                 # Add competitor analysis
                 competitors = []

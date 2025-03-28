@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-bs-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,15 +8,99 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <style>
+        :root {
+            --bs-body-bg: #1a1d20;
+            --bs-body-color: #e9ecef;
+            --bs-card-bg: #212529;
+            --bs-card-border-color: #2c3034;
+        }
+
+        body {
+            background-color: var(--bs-body-bg);
+            color: var(--bs-body-color);
+        }
+
+        .card {
+            background-color: var(--bs-card-bg);
+            border-color: var(--bs-card-border-color);
+        }
+
+        .card-header {
+            background-color: rgba(33, 37, 41, 0.8);
+            border-bottom-color: var(--bs-card-border-color);
+        }
+
+        .alert-info {
+            background-color: rgba(13, 202, 240, 0.15);
+            border-color: rgba(13, 202, 240, 0.4);
+            color: #e9ecef;
+        }
+
+        .alert-success {
+            background-color: rgba(25, 135, 84, 0.15);
+            border-color: rgba(25, 135, 84, 0.4);
+            color: #e9ecef;
+        }
+
+        .alert-warning {
+            background-color: rgba(255, 193, 7, 0.15);
+            border-color: rgba(255, 193, 7, 0.4);
+            color: #e9ecef;
+        }
+
+        .alert-danger {
+            background-color: rgba(220, 53, 69, 0.15);
+            border-color: rgba(220, 53, 69, 0.4);
+            color: #e9ecef;
+        }
+
+        .text-muted {
+            color: #adb5bd !important;
+        }
+
+        hr {
+            border-color: var(--bs-card-border-color);
+        }
+
         [data-bs-toggle="tooltip"] {
             cursor: help;
         }
+
         .info-icon {
             color: #6c757d;
             transition: color 0.2s;
         }
+
         .info-icon:hover {
             color: #0d6efd;
+        }
+
+        .display-4 {
+            color: #e9ecef;
+        }
+
+        .text-primary {
+            color: #0d6efd !important;
+        }
+
+        .text-success {
+            color: #198754 !important;
+        }
+
+        .text-warning {
+            color: #ffc107 !important;
+        }
+
+        .text-danger {
+            color: #dc3545 !important;
+        }
+
+        .bg-dark {
+            background-color: #141619 !important;
+        }
+
+        .navbar {
+            border-bottom: 1px solid var(--bs-card-border-color);
         }
     </style>
 </head>
@@ -49,6 +133,22 @@
                     html: true
                 });
             });
+
+            // Update Plotly charts to use dark theme
+            if (typeof Plotly !== 'undefined') {
+                var darkTemplate = {
+                    paper_bgcolor: '#1a1d20',
+                    plot_bgcolor: '#1a1d20',
+                    font: { color: '#e9ecef' },
+                    xaxis: { gridcolor: '#2c3034' },
+                    yaxis: { gridcolor: '#2c3034' }
+                };
+                
+                var charts = document.querySelectorAll('[id^="chart-"]');
+                charts.forEach(function(chart) {
+                    Plotly.relayout(chart, darkTemplate);
+                });
+            }
         });
     </script>
     {% block scripts %}{% endblock %}
