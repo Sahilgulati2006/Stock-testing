@@ -2,9 +2,35 @@
 
 {% block content %}
 <div class="container mt-4">
-<div class="row">
-        <div class="col-12 text-center mb-4">
-            <h1 class="display-4">{{ ticker }} Analysis</h1>
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card bg-dark text-white">
+                <div class="card-body py-4">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h1 class="display-3 mb-0 fw-bold">{{ ticker }}</h1>
+                            {% if fundamentals %}
+                            <p class="lead mb-0 text-light opacity-75">{{ fundamentals.get('name', '') }}</p>
+                            <div class="mt-2">
+                                <span class="badge bg-primary me-2">{{ fundamentals.get('sector', 'N/A') }}</span>
+                                <span class="badge bg-info">{{ fundamentals.get('industry', 'N/A') }}</span>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% if fundamentals %}
+                        <div class="text-end">
+                            <h2 class="display-4 mb-0">${{ "%.2f"|format(fundamentals.get('current_price', 0)) }}</h2>
+                            <div class="mt-2">
+                                <span class="badge {% if fundamentals.get('price_change', 0) > 0 %}bg-success{% else %}bg-danger{% endif %} fs-5">
+                                    {{ "%.2f"|format(fundamentals.get('price_change', 0)) }}
+                                    ({{ "%.2f"|format(fundamentals.get('price_change_percent', 0)) }}%)
+                                </span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
         </div>
         
         <div class="col-12">
@@ -251,61 +277,82 @@
             </div>
         </div>
         
-        <!-- Industry Comparison Card -->
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4 class="mb-0">
+        <!-- Industry & Sector Comparison -->
+        <div class="card mt-4">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">
                     <i class="fas fa-industry me-2"></i>Industry & Sector Comparison
-                </h4>
+                </h5>
             </div>
             <div class="card-body">
-                {% if fundamentals.get('competitors') %}
+                {% if competitor_data %}
+                <div class="mb-3">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-2"></i>Comparing {{ ticker }} with other companies in the {{ competitor_data.industry }} industry
+                    </p>
+                </div>
+                
                 <div class="table-responsive">
                     <table class="table table-hover">
-                        <thead class="table-dark">
+                        <thead>
                             <tr>
-                                <th>Metric</th>
-                                <th>{{ ticker }}</th>
-                                {% for competitor in fundamentals.get('competitors', []) %}
-                                <th>{{ competitor.symbol }}</th>
-                                {% endfor %}
+                                <th>Company</th>
+                                <th>Price</th>
+                                <th>Market Cap</th>
+                                <th>Revenue Growth</th>
+                                <th>Profit Margin</th>
+                                <th>PE Ratio</th>
+                                <th>Action</th>
                             </tr>
                         </thead>
                         <tbody>
+                            {% for comp in competitor_data.competitors %}
                             <tr>
-                                <td><strong>PE Ratio</strong></td>
-                                <td class="fw-bold">{{ fundamentals.get('ratios', {}).get('PE Ratio', 'N/A') }}</td>
-                                {% for competitor in fundamentals.get('competitors', []) %}
-                                <td>{{ competitor.pe_ratio }}</td>
-                                {% endfor %}
+                                <td>
+                                    <strong>{{ comp.symbol }}</strong><br>
+                                    <small class="text-muted">{{ comp.name }}</small>
+                                </td>
+                                <td>${{ "%.2f"|format(comp.price) }}</td>
+                                <td>${{ (comp.market_cap/1000000000)|round(1) }}B</td>
+                                <td>
+                                    <span class="{% if comp.revenue_growth|float > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ comp.revenue_growth }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="{% if comp.profit_margin|float > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ comp.profit_margin }}
+                                    </span>
+                                </td>
+                                <td>{{ comp.pe_ratio }}</td>
+                                <td>
+                                    <form action="{{ url_for('main.analyze') }}" method="post" style="display: inline;">
+                                        <input type="hidden" name="ticker" value="{{ comp.symbol }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary">
+                                            Analyze
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
-                            <tr>
-                                <td><strong>Profit Margin</strong></td>
-                                <td class="fw-bold">{{ fundamentals.get('profit_margin', 'N/A') }}</td>
-                                {% for competitor in fundamentals.get('competitors', []) %}
-                                <td>{{ competitor.profit_margin }}</td>
-                                {% endfor %}
-                            </tr>
-                            <tr>
-                                <td><strong>Revenue Growth</strong></td>
-                                <td class="fw-bold">{{ fundamentals.get('revenue_growth', 'N/A') }}</td>
-                                {% for competitor in fundamentals.get('competitors', []) %}
-                                <td>{{ competitor.revenue_growth }}</td>
-                                {% endfor %}
-                            </tr>
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
+
+                {% if competitor_data.competitor_insights %}
                 <div class="mt-4">
-                    <h5>Industry Position</h5>
-                    <ul class="list-unstyled">
-                        {% for insight in fundamentals.get('competitor_insights', []) %}
-                        <li class="mb-2">
-                            <i class="fas fa-chart-line text-primary me-2"></i>{{ insight }}
-                        </li>
+                    <h6 class="mb-3">Competitive Analysis Insights</h6>
+                    <div class="list-group">
+                        {% for insight in competitor_data.competitor_insights %}
+                        <div class="list-group-item">
+                            <i class="fas fa-chart-line me-2 text-primary"></i>
+                            {{ insight }}
+                        </div>
                         {% endfor %}
-                    </ul>
+                    </div>
                 </div>
+                {% endif %}
+
                 {% else %}
                 <div class="alert alert-info mb-0">
                     <i class="fas fa-info-circle me-2"></i>No competitor comparison data available

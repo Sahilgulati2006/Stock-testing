@@ -548,6 +548,12 @@ class StockService:
                 stock = yf.Ticker(ticker)
                 info = stock.info
                 
+                # Get current price and price change
+                current_price = info.get('currentPrice', 0)
+                previous_close = info.get('previousClose', current_price)
+                price_change = current_price - previous_close
+                price_change_percent = (price_change / previous_close) * 100 if previous_close else 0
+                
                 # Get basic info
                 fundamentals = {
                     "name": info.get('longName', ticker),
@@ -555,6 +561,11 @@ class StockService:
                     "sector": info.get('sector', "N/A"),
                     "market_cap": format_number(info.get('marketCap', 0)),
                     "description": info.get('longBusinessSummary', "No description available"),
+                    
+                    # Add price information
+                    "current_price": current_price,
+                    "price_change": price_change,
+                    "price_change_percent": price_change_percent,
                     
                     # Company Overview Data
                     "company_name": info.get('longName', ticker),
@@ -973,4 +984,141 @@ class StockService:
             
         except Exception as e:
             print(f"Error finding similar stocks: {str(e)}")
+            return None
+
+    @staticmethod
+    def get_competitors(ticker):
+        """Get competitor information for the given ticker"""
+        try:
+            print(f"\nFetching competitor data for {ticker}")
+            stock = yf.Ticker(ticker)
+            
+            # Get company info
+            info = stock.info
+            sector = info.get('sector', '')
+            industry = info.get('industry', '')
+            company_revenue_growth = info.get('revenueGrowth', 0)
+            company_profit_margin = info.get('profitMargins', 0)
+            company_pe = info.get('trailingPE', 0)
+            
+            if not sector or not industry:
+                print(f"No sector/industry data for {ticker}")
+                return None
+                
+            print(f"Sector: {sector}, Industry: {industry}")
+            
+            # Predefined competitor mappings for specific industries
+            industry_competitors = {
+                'Aerospace & Defense': ['BA', 'LMT', 'RTX', 'NOC', 'SPCE', 'RKLB', 'ASTR'],
+                'Semiconductors': ['NVDA', 'AMD', 'INTC', 'TSM', 'QCOM', 'MU'],
+                'Software—Infrastructure': ['MSFT', 'ORCL', 'VMW', 'CTXS', 'NLOK'],
+                'Internet Content & Information': ['GOOGL', 'META', 'PINS', 'SNAP', 'TWTR'],
+                'Auto Manufacturers': ['TSLA', 'F', 'GM', 'TM', 'RIVN', 'NIO'],
+                'Consumer Electronics': ['AAPL', 'SONY', 'BBY', 'SONO'],
+                'Biotechnology': ['NBIX', 'BIIB', 'AMGN', 'GILD', 'VRTX', 'REGN']
+            }
+            
+            # Get competitors from predefined list or Yahoo Finance
+            competitors = []
+            if industry in industry_competitors:
+                competitors = [c for c in industry_competitors[industry] if c != ticker]
+            
+            # If no predefined competitors or less than 2 found, try to get from Yahoo Finance
+            if len(competitors) < 2:
+                try:
+                    recom = stock.recommendations
+                    if recom is not None:
+                        similar_tickers = recom.index.get_level_values(1).unique().tolist()
+                        competitors.extend([t for t in similar_tickers if t != ticker])
+                except Exception as e:
+                    print(f"Error getting recommendations: {e}")
+            
+            # Remove duplicates and limit to top 5
+            competitors = list(dict.fromkeys(competitors))[:5]
+            
+            if not competitors:
+                print(f"No competitors found for {ticker}")
+                return None
+            
+            # Get detailed info for each competitor
+            competitor_data = []
+            total_revenue_growth = 0
+            total_profit_margin = 0
+            total_pe = 0
+            valid_metrics = 0
+            
+            for comp_ticker in competitors:
+                try:
+                    comp = yf.Ticker(comp_ticker)
+                    comp_info = comp.info
+                    
+                    # Get financial metrics
+                    revenue_growth = comp_info.get('revenueGrowth', 0)
+                    profit_margin = comp_info.get('profitMargins', 0)
+                    pe_ratio = comp_info.get('trailingPE', 0)
+                    
+                    # Add to totals for averaging
+                    if revenue_growth:
+                        total_revenue_growth += revenue_growth
+                    if profit_margin:
+                        total_profit_margin += profit_margin
+                    if pe_ratio:
+                        total_pe += pe_ratio
+                    if revenue_growth or profit_margin or pe_ratio:
+                        valid_metrics += 1
+                    
+                    competitor_data.append({
+                        'symbol': comp_ticker,
+                        'name': comp_info.get('shortName', comp_ticker),
+                        'price': comp_info.get('currentPrice', 0),
+                        'market_cap': comp_info.get('marketCap', 0),
+                        'revenue_growth': f"{revenue_growth*100:.1f}%" if revenue_growth else "N/A",
+                        'profit_margin': f"{profit_margin*100:.1f}%" if profit_margin else "N/A",
+                        'pe_ratio': f"{pe_ratio:.1f}" if pe_ratio else "N/A"
+                    })
+                except Exception as e:
+                    print(f"Error getting data for competitor {comp_ticker}: {e}")
+                    continue
+            
+            if not competitor_data:
+                return None
+            
+            # Calculate averages for comparison
+            avg_revenue_growth = total_revenue_growth / valid_metrics if valid_metrics > 0 else 0
+            avg_profit_margin = total_profit_margin / valid_metrics if valid_metrics > 0 else 0
+            avg_pe = total_pe / valid_metrics if valid_metrics > 0 else 0
+            
+            # Generate insights
+            insights = []
+            
+            # Revenue Growth comparison
+            if company_revenue_growth and avg_revenue_growth:
+                if company_revenue_growth > avg_revenue_growth * 1.2:
+                    insights.append(f"{ticker} shows superior revenue growth ({company_revenue_growth*100:.1f}%) compared to industry average ({avg_revenue_growth*100:.1f}%)")
+                elif company_revenue_growth < avg_revenue_growth * 0.8:
+                    insights.append(f"{ticker}'s revenue growth ({company_revenue_growth*100:.1f}%) is below industry average ({avg_revenue_growth*100:.1f}%)")
+            
+            # Profit Margin comparison
+            if company_profit_margin and avg_profit_margin:
+                if company_profit_margin > avg_profit_margin * 1.2:
+                    insights.append(f"{ticker} demonstrates stronger profit margins ({company_profit_margin*100:.1f}%) versus industry average ({avg_profit_margin*100:.1f}%)")
+                elif company_profit_margin < avg_profit_margin * 0.8:
+                    insights.append(f"{ticker}'s profit margins ({company_profit_margin*100:.1f}%) lag behind industry average ({avg_profit_margin*100:.1f}%)")
+            
+            # PE Ratio comparison
+            if company_pe and avg_pe:
+                if company_pe > avg_pe * 1.2:
+                    insights.append(f"{ticker} trades at a premium PE ratio ({company_pe:.1f}x) compared to industry average ({avg_pe:.1f}x)")
+                elif company_pe < avg_pe * 0.8:
+                    insights.append(f"{ticker} trades at a discount PE ratio ({company_pe:.1f}x) compared to industry average ({avg_pe:.1f}x)")
+            
+            return {
+                'sector': sector,
+                'industry': industry,
+                'competitors': competitor_data,
+                'competitor_insights': insights
+            }
+            
+        except Exception as e:
+            print(f"Error getting competitors for {ticker}: {e}")
             return None

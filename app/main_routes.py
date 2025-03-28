@@ -43,6 +43,10 @@ def analyze():
         news = StockService.get_stock_news(ticker)
         fundamentals = StockService.get_fundamentals(ticker)
         
+        # Get competitor data
+        print("Fetching competitor data")
+        competitor_data = StockService.get_competitors(ticker)
+        
         # Get similar stock recommendations
         print("Finding similar stocks")
         similar_stocks = StockService.get_similar_stocks(ticker)
@@ -84,7 +88,8 @@ def analyze():
                              fib_levels=fib_levels,
                              news=news,
                              fundamentals=fundamentals,
-                             similar_stocks=similar_stocks)
+                             similar_stocks=similar_stocks,
+                             competitor_data=competitor_data)
                              
     except Exception as e:
         error_msg = f"Error analyzing {ticker}: {str(e)}"
