@@ -91,6 +91,110 @@
             </div>
         </div>
     </div>
+
+    <!-- What If Calculator Section -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-header bg-dark text-white py-3">
+            <h3 class="h5 mb-0">
+                <i class="fas fa-calculator me-2"></i>
+                What If Calculator
+            </h3>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <form id="whatIfForm" class="mb-3">
+                        <div class="mb-3">
+                            <label class="form-label">Initial Investment</label>
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="initialInvestment" 
+                                       placeholder="1000" 
+                                       min="0.01" 
+                                       step="0.01" 
+                                       required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Stock Ticker</label>
+                            <input type="text" class="form-control" id="whatIfTicker" placeholder="AAPL" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Investment Date</label>
+                            <input type="date" class="form-control" id="investmentDate" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            Calculate Returns
+                        </button>
+                    </form>
+                </div>
+                <div class="col-md-6">
+                    <div id="whatIfResults" class="d-none">
+                        <div class="alert bg-dark text-white mb-3">
+                            <h6 class="alert-heading mb-2">Investment Summary</h6>
+                            <div id="summaryText"></div>
+                        </div>
+                        <div class="card bg-dark text-white">
+                            <div class="card-body">
+                                <div class="row g-3">
+                                    <div class="col-6">
+                                        <div class="d-flex align-items-center">
+                                            <div class="feature-icon me-2 bg-primary bg-opacity-25">
+                                                <i class="fas fa-dollar-sign text-primary"></i>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted">Current Value</small>
+                                                <strong id="currentValue" class="d-block text-white">$0</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="d-flex align-items-center">
+                                            <div class="feature-icon me-2 bg-success bg-opacity-25">
+                                                <i class="fas fa-chart-line text-success"></i>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted">Total Return</small>
+                                                <strong id="totalReturn" class="d-block text-white">0%</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="d-flex align-items-center">
+                                            <div class="feature-icon me-2 bg-info bg-opacity-25">
+                                                <i class="fas fa-calendar text-info"></i>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted">Time Period</small>
+                                                <strong id="timePeriod" class="d-block text-white">0 years</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="d-flex align-items-center">
+                                            <div class="feature-icon me-2 bg-warning bg-opacity-25">
+                                                <i class="fas fa-percentage text-warning"></i>
+                                            </div>
+                                            <div>
+                                                <small class="text-muted">Annual Return</small>
+                                                <strong id="annualReturn" class="d-block text-white">0%</strong>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="whatIfError" class="alert alert-danger d-none">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <span id="errorMessage"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -118,6 +222,12 @@
     background: rgba(255, 255, 255, 0.95);
 }
 
+#whatIfResults .feature-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+}
+
 @media (max-width: 768px) {
     .hero-section {
         min-height: 30vh;
@@ -139,4 +249,78 @@
     }
 }
 </style>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const whatIfForm = document.getElementById('whatIfForm');
+    const resultsDiv = document.getElementById('whatIfResults');
+    const errorDiv = document.getElementById('whatIfError');
+    
+    // Set max date to today
+    const today = new Date();
+    const investmentDate = document.getElementById('investmentDate');
+    investmentDate.max = today.toISOString().split('T')[0];
+    
+    // Set default date to 1 year ago
+    const oneYearAgo = new Date();
+    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+    investmentDate.value = oneYearAgo.toISOString().split('T')[0];
+    
+    whatIfForm.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const initialInvestment = parseFloat(document.getElementById('initialInvestment').value);
+        const ticker = document.getElementById('whatIfTicker').value.toUpperCase();
+        const startDate = document.getElementById('investmentDate').value;
+        
+        try {
+            const response = await fetch('/api/what-if-calculator', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    initial_investment: initialInvestment,
+                    ticker: ticker,
+                    start_date: startDate
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                errorDiv.classList.remove('d-none');
+                resultsDiv.classList.add('d-none');
+                errorDiv.querySelector('#errorMessage').textContent = data.error;
+                return;
+            }
+            
+            // Update results
+            document.getElementById('currentValue').textContent = `$${data.current_value.toLocaleString('en-US', {maximumFractionDigits: 2})}`;
+            document.getElementById('totalReturn').textContent = `${data.total_return_percentage.toFixed(2)}%`;
+            document.getElementById('timePeriod').textContent = data.time_period;
+            document.getElementById('annualReturn').textContent = `${data.annual_return.toFixed(2)}%`;
+            
+            // Update summary text
+            const summaryText = document.getElementById('summaryText');
+            summaryText.innerHTML = `
+                If you had invested $${initialInvestment.toLocaleString()} in ${ticker} on ${new Date(startDate).toLocaleDateString()}, 
+                your investment would be worth $${data.current_value.toLocaleString('en-US', {maximumFractionDigits: 2})} today, 
+                representing a ${data.total_return_percentage > 0 ? 'gain' : 'loss'} of ${Math.abs(data.total_return_percentage).toFixed(2)}%.
+            `;
+            
+            // Show results
+            resultsDiv.classList.remove('d-none');
+            errorDiv.classList.add('d-none');
+            
+        } catch (error) {
+            errorDiv.classList.remove('d-none');
+            resultsDiv.classList.add('d-none');
+            errorDiv.querySelector('#errorMessage').textContent = 'An error occurred while calculating returns. Please try again.';
+        }
+    });
+});
+</script>
+{% endblock %}
 {% endblock %}
