@@ -120,14 +120,18 @@ class StockService:
             
             print("EMAs calculated successfully")
             
-            # RSI Calculation
+            # Calculate RSI
             delta = df['Close'].diff()
-            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
-            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
-            rs = gain / loss
-            df['RSI'] = 100 - (100 / (1 + rs))
+            gain = delta.copy()
+            loss = delta.copy()
+            gain[gain < 0] = 0
+            loss[loss > 0] = 0
             
-            print("RSI calculated successfully")
+            avg_gain = gain.rolling(window=14).mean()
+            avg_loss = abs(loss.rolling(window=14).mean())
+            
+            rs = avg_gain / avg_loss
+            df['RSI'] = 100 - (100 / (1 + rs))
             
             # Calculate EMA crossovers
             df['EMA_50_100_Cross'] = np.where(
@@ -193,10 +197,10 @@ class StockService:
     @staticmethod
     def calculate_fibonacci_levels(data):
         """Calculate Fibonacci retracement levels"""
+        if data is None or data.empty:
+            return None
+        
         try:
-            if data is None or data.empty:
-                return None
-                
             high = float(data['High'].max())
             low = float(data['Low'].min())
             close = float(data['Close'].iloc[-1])
@@ -212,7 +216,6 @@ class StockService:
                 '100.0 (Low)': low
             }
             
-            # Convert all values to float and round to 2 decimal places
             return {k: round(float(v), 2) for k, v in levels.items()}
             
         except Exception as e:
@@ -225,95 +228,545 @@ class StockService:
         try:
             print(f"\nFetching news for {ticker}")
             
-            # Initial delay and retry settings
+            # Add delay between API calls to avoid rate limits
+            time.sleep(1)
+            
+            # Try to get news with retries
             max_retries = 3
-            base_delay = 2
+            retry_delay = 2
             
             for attempt in range(max_retries):
                 try:
-                    # Add delay between attempts (exponential backoff)
-                    if attempt > 0:
-                        delay = base_delay * (2 ** (attempt - 1))  # 2, 4, 8 seconds
-                        print(f"Retry attempt {attempt + 1}, waiting {delay} seconds...")
-                        time.sleep(delay)
-                    
-                    # Fetch news with specific parameters
-                    news = client.list_ticker_news(
-                        ticker=ticker,
-                        limit=limit,
-                        order='desc',
-                        sort='published_utc'
-                    )
-                    
+                    news = client.list_ticker_news(ticker=ticker, limit=20, order='desc', sort='published_utc')  # Get more items to filter
                     news_items = []
+                    one_month_ago = datetime.now() - timedelta(days=30)
+                    
                     for item in news:
-                        # Convert UTC timestamp to readable date
-                        try:
-                            published_date = datetime.fromtimestamp(item.published_utc/1000).strftime('%Y-%m-%d %H:%M UTC')
-                        except:
-                            published_date = 'Date not available'
+                        # Convert UTC timestamp to datetime
+                        published_date = datetime.fromtimestamp(item.published_utc/1000)
                         
-                        # Truncate description to avoid very long text
-                        description = getattr(item, 'description', 'No description available')
-                        if description and len(description) > 200:
-                            description = description[:197] + '...'
+                        # Skip if older than a month
+                        if published_date < one_month_ago:
+                            continue
+                            
+                        # Format date for display
+                        formatted_date = published_date.strftime('%Y-%m-%d %H:%M UTC')
                         
                         news_item = {
                             "title": getattr(item, 'title', 'No title available'),
-                            "description": description,
-                            "published": published_date,
+                            "description": getattr(item, 'description', 'No description available')[:200] + '...',  # Truncate long descriptions
+                            "published": formatted_date,
                             "url": getattr(item, 'article_url', '#')
                         }
                         news_items.append(news_item)
+                        
+                        # Break if we have enough recent news items
+                        if len(news_items) >= limit:
+                            break
                     
                     if news_items:
-                        print(f"Successfully fetched {len(news_items)} news items for {ticker}")
+                        print(f"Successfully fetched {len(news_items)} recent news items for {ticker}")
                         return news_items
                     else:
                         return [{
                             "title": "No recent news available",
-                            "description": f"No news articles found for {ticker}",
+                            "description": f"No news articles found for {ticker} in the past month",
                             "published": datetime.now().strftime('%Y-%m-%d %H:%M UTC'),
                             "url": "#"
                         }]
-                
+                    
                 except Exception as e:
-                    print(f"Attempt {attempt + 1} failed: {str(e)}")
-                    if attempt == max_retries - 1:  # Last attempt
-                        raise
-                    if "429" in str(e):  # Rate limit error
-                        continue
-                    else:  # Other error
+                    if attempt < max_retries - 1:
+                        print(f"Attempt {attempt + 1} failed, retrying in {retry_delay} seconds...")
+                        time.sleep(retry_delay)
+                        retry_delay *= 2  # Exponential backoff
+                    else:
                         raise
             
         except Exception as e:
             print(f"Error fetching news for {ticker}: {str(e)}")
-            return [{
+        return [{
                 "title": "News temporarily unavailable",
-                "description": "We're experiencing some technical difficulties fetching the latest news. Please try again in a few minutes.",
+                "description": "We're experiencing some technical difficulties fetching the latest news. Please try again later.",
                 "published": datetime.now().strftime('%Y-%m-%d %H:%M UTC'),
                 "url": "#"
             }]
     
     @staticmethod
     def get_fundamentals(ticker):
-        """Fetch fundamental data"""
+        """Fetch fundamental data and financial metrics"""
+        def format_number(num):
+            """Helper to format large numbers"""
+            if num is None or num == 0:
+                return "N/A"
+            if num >= 1e12:
+                return f"${num/1e12:.2f}T"
+            elif num >= 1e9:
+                return f"${num/1e9:.2f}B"
+            elif num >= 1e6:
+                return f"${num/1e6:.2f}M"
+            else:
+                return f"${num:,.0f}"
+
+        def calculate_ratios(info):
+            """Calculate financial ratios"""
+            try:
+                pe_ratio = info.get('trailingPE', 0)
+                forward_pe = info.get('forwardPE', 0)
+                
+                # Calculate PEG ratio
+                # First try to get pegRatio directly
+                peg_ratio = info.get('pegRatio', 0)
+                
+                # If pegRatio is not available, calculate it using PE and earnings growth
+                if not peg_ratio or peg_ratio == 0:
+                    earnings_growth = info.get('earningsGrowth', 0)
+                    if earnings_growth and earnings_growth != 0 and pe_ratio and pe_ratio > 0:
+                        peg_ratio = pe_ratio / (earnings_growth * 100)
+                    else:
+                        # Try using earnings quarterly growth
+                        earnings_quarterly_growth = info.get('earningsQuarterlyGrowth', 0)
+                        if earnings_quarterly_growth and earnings_quarterly_growth != 0 and pe_ratio and pe_ratio > 0:
+                            peg_ratio = pe_ratio / (earnings_quarterly_growth * 100)
+                
+                price_to_book = info.get('priceToBook', 0)
+                
+                return {
+                    'PE Ratio': f"{pe_ratio:.2f}" if pe_ratio and pe_ratio > 0 else "N/A",
+                    'Forward PE': f"{forward_pe:.2f}" if forward_pe and forward_pe > 0 else "N/A",
+                    'PEG Ratio': f"{peg_ratio:.2f}" if peg_ratio and peg_ratio > 0 else "N/A",
+                    'Price/Book': f"{price_to_book:.2f}" if price_to_book and price_to_book > 0 else "N/A"
+                }
+            except Exception as e:
+                print(f"Error calculating ratios: {str(e)}")
+                return {
+                    'PE Ratio': "N/A",
+                    'Forward PE': "N/A",
+                    'PEG Ratio': "N/A",
+                    'Price/Book': "N/A"
+                }
+
+        def analyze_financials(info, ratios):
+            """Analyze financial metrics and provide recommendations"""
+            analysis = []
+            score = 0
+            max_score = 0
+            
+            # PE Ratio Analysis
+            try:
+                pe = float(ratios['PE Ratio'].replace("N/A", "0"))
+                if 0 < pe < 15:
+                    analysis.append("✅ PE Ratio indicates stock might be undervalued")
+                    score += 1
+                elif 15 <= pe < 25:
+                    analysis.append("📊 PE Ratio is within reasonable range")
+                    score += 0.5
+                elif pe >= 25:
+                    analysis.append("⚠️ PE Ratio suggests stock might be overvalued")
+                max_score += 1
+            except:
+                pass
+
+            # PEG Ratio Analysis
+            try:
+                peg = float(ratios['PEG Ratio'].replace("N/A", "0"))
+                if 0 < peg < 1:
+                    analysis.append("✅ PEG Ratio suggests good value relative to growth")
+                    score += 1
+                elif 1 <= peg < 2:
+                    analysis.append("📊 PEG Ratio indicates fair value")
+                    score += 0.5
+                elif peg >= 2:
+                    analysis.append("⚠️ PEG Ratio suggests stock might be overvalued")
+                max_score += 1
+            except:
+                pass
+
+            # Price to Book Analysis
+            try:
+                pb = float(ratios['Price/Book'].replace("N/A", "0"))
+                if 0 < pb < 3:
+                    analysis.append("✅ Price/Book ratio suggests reasonable valuation")
+                    score += 1
+                elif 3 <= pb < 5:
+                    analysis.append("📊 Price/Book ratio is moderate")
+                    score += 0.5
+                elif pb >= 5:
+                    analysis.append("⚠️ High Price/Book ratio")
+                max_score += 1
+            except:
+                pass
+
+            # Revenue Growth
+            try:
+                revenue_growth = info.get('revenueGrowth', 0)
+                if revenue_growth > 0.2:
+                    analysis.append("✅ Strong revenue growth (>20%)")
+                    score += 1
+                elif 0.05 <= revenue_growth <= 0.2:
+                    analysis.append("📊 Moderate revenue growth (5-20%)")
+                    score += 0.5
+                elif revenue_growth < 0.05:
+                    analysis.append("⚠️ Low revenue growth (<5%)")
+                max_score += 1
+            except:
+                pass
+
+            # Profit Margins
+            try:
+                profit_margins = info.get('profitMargins', 0)
+                if profit_margins > 0.2:
+                    analysis.append("✅ Strong profit margins (>20%)")
+                    score += 1
+                elif 0.1 <= profit_margins <= 0.2:
+                    analysis.append("📊 Healthy profit margins (10-20%)")
+                    score += 0.5
+                elif profit_margins < 0.1:
+                    analysis.append("⚠️ Low profit margins (<10%)")
+                max_score += 1
+            except:
+                pass
+
+            # Calculate final score and recommendation
+            if max_score > 0:
+                final_score = (score / max_score) * 100
+                if final_score >= 70:
+                    recommendation = "🟢 Strong Buy - Financial metrics indicate strong fundamentals"
+                elif final_score >= 50:
+                    recommendation = "🟡 Hold - Financial metrics are mixed but generally positive"
+                else:
+                    recommendation = "🔴 Caution - Financial metrics suggest careful consideration needed"
+            else:
+                recommendation = "⚪ Unable to make recommendation - Insufficient financial data"
+
+            return {
+                'analysis_points': analysis,
+                'recommendation': recommendation,
+                'score': f"{final_score:.1f}%" if max_score > 0 else "N/A"
+            }
+
         try:
             print(f"\nFetching fundamentals for {ticker}")
-            details = client.get_ticker_details(ticker)
-            fundamentals = {
-                "name": details.name if hasattr(details, 'name') else ticker,
-                "industry": details.sic_description if hasattr(details, 'sic_description') else "N/A",
-                "market_cap": details.market_cap if hasattr(details, 'market_cap') else "N/A",
-                "description": details.description if hasattr(details, 'description') else "No description available"
-            }
-            print(f"Successfully retrieved fundamentals for {ticker}")
-            return fundamentals
+            
+            # Try Yahoo Finance first for more detailed financials
+            try:
+                print("Fetching fundamentals from Yahoo Finance...")
+                stock = yf.Ticker(ticker)
+                info = stock.info
+                
+                # Get basic info
+                fundamentals = {
+                    "name": info.get('longName', ticker),
+                    "industry": info.get('industry', "N/A"),
+                    "sector": info.get('sector', "N/A"),
+                    "market_cap": format_number(info.get('marketCap', 0)),
+                    "description": info.get('longBusinessSummary', "No description available"),
+                    
+                    # Company Overview Data
+                    "company_name": info.get('longName', ticker),
+                    "headquarters": f"{info.get('city', 'N/A')}, {info.get('state', '')}, {info.get('country', '')}".replace(", ,", ",").strip(", "),
+                    "ceo": info.get('companyOfficers', [{}])[0].get('name', 'N/A') if info.get('companyOfficers') else 'N/A',
+                    "ceo_title": info.get('companyOfficers', [{}])[0].get('title', 'CEO') if info.get('companyOfficers') else 'CEO',
+                    "business_summary": info.get('longBusinessSummary', "No business summary available."),
+                    "global_presence": info.get('geographySegments', "Global operations") if info.get('geographySegments') else "N/A",
+                    
+                    # Products and Services
+                    "products_services": [
+                        segment.strip()
+                        for segment in info.get('businessSegments', "").split(",")
+                        if segment.strip()
+                    ] if info.get('businessSegments') else [],
+                    
+                    # Key Markets
+                    "key_markets": [
+                        {
+                            "name": "Consumer Market",
+                            "description": "Individual consumers and retail customers"
+                        },
+                        {
+                            "name": info.get('sector', 'Primary Sector'),
+                            "description": info.get('industry', 'Main industry focus')
+                        },
+                        {
+                            "name": "Geographic Markets",
+                            "description": info.get('geographySegments', 'Global operations')
+                        }
+                    ] if info.get('sector') or info.get('industry') else [
+                        {
+                            "name": "Primary Market",
+                            "description": info.get('longBusinessSummary', '').split('.')[0] if info.get('longBusinessSummary') else "Main business segment"
+                        }
+                    ],
+                    
+                    # Major Holders
+                    "major_holders": [],
+                    
+                    # Additional financial metrics
+                    "revenue": format_number(info.get('totalRevenue', 0)),
+                    "revenue_growth": f"{info.get('revenueGrowth', 0)*100:.1f}%" if info.get('revenueGrowth') else "N/A",
+                    "profit_margin": f"{info.get('profitMargins', 0)*100:.1f}%" if info.get('profitMargins') else "N/A",
+                    "operating_margin": f"{info.get('operatingMargins', 0)*100:.1f}%" if info.get('operatingMargins') else "N/A",
+                    "free_cashflow": format_number(info.get('freeCashflow', 0)),
+                    "debt_to_equity": f"{info.get('debtToEquity', 0):.2f}" if info.get('debtToEquity') else "N/A",
+                    "current_ratio": f"{info.get('currentRatio', 0):.2f}" if info.get('currentRatio') else "N/A",
+                    
+                    # Calculate key ratios
+                    "ratios": calculate_ratios(info)
+                }
+                
+                # Add financial analysis
+                fundamentals.update(analyze_financials(info, fundamentals['ratios']))
+                
+                # Add competitor analysis
+                competitors = []
+                competitor_symbols = {
+                    'NVDA': ['AMD', 'INTC', 'QCOM'],
+                    'AAPL': ['MSFT', 'GOOGL', 'SSNLF'],
+                    'TSLA': ['GM', 'F', 'TM'],
+                    'META': ['GOOGL', 'SNAP', 'PINS'],
+                    'MSFT': ['AAPL', 'GOOGL', 'ORCL']
+                }
+                
+                if ticker in competitor_symbols:
+                    for symbol in competitor_symbols[ticker]:
+                        try:
+                            comp_stock = yf.Ticker(symbol)
+                            comp_info = comp_stock.info
+                            
+                            competitors.append({
+                                'symbol': symbol,
+                                'pe_ratio': f"{comp_info.get('trailingPE', 0):.1f}",
+                                'profit_margin': f"{comp_info.get('profitMargins', 0) * 100:.1f}%",
+                                'revenue_growth': f"{comp_info.get('revenueGrowth', 0) * 100:.1f}%"
+                            })
+                        except Exception as e:
+                            print(f"Error fetching competitor data for {symbol}: {str(e)}")
+                            continue
+                
+                fundamentals['competitors'] = competitors
+                
+                # Add competitor insights
+                if competitors:
+                    insights = []
+                    try:
+                        # PE Ratio comparison
+                        company_pe = float(fundamentals['ratios'].get('PE Ratio', '0').replace(',', ''))
+                        comp_pes = [float(c['pe_ratio']) for c in competitors if c['pe_ratio'] != 'N/A']
+                        
+                        # Revenue Growth comparison
+                        company_growth = float(fundamentals['revenue_growth'].strip('%'))
+                        comp_growths = [float(c['revenue_growth'].strip('%')) for c in competitors if c['revenue_growth'] != 'N/A']
+                        
+                        # Profit Margin comparison
+                        company_margin = float(fundamentals['profit_margin'].strip('%'))
+                        comp_margins = [float(c['profit_margin'].strip('%')) for c in competitors if c['profit_margin'] != 'N/A']
+                        
+                        # Industry Position Analysis
+                        if comp_pes:
+                            avg_pe = sum(comp_pes) / len(comp_pes)
+                            if company_pe > avg_pe * 1.2:
+                                insights.append(f"{ticker} trades at a premium PE ratio compared to competitors, suggesting higher growth expectations.")
+                            elif company_pe < avg_pe * 0.8:
+                                insights.append(f"{ticker} trades at a discount PE ratio compared to competitors, potentially indicating undervaluation.")
+                        
+                        if comp_growths:
+                            avg_growth = sum(comp_growths) / len(comp_growths)
+                            growth_rank = sum(1 for g in comp_growths if g < company_growth) + 1
+                            total_companies = len(comp_growths) + 1
+                            insights.append(f"Revenue Growth: Ranks #{growth_rank} out of {total_companies} in the peer group.")
+                            
+                            if company_growth > avg_growth * 1.5:
+                                insights.append(f"Industry Leader: {ticker} shows exceptional revenue growth, significantly outpacing industry average.")
+                            elif company_growth < avg_growth * 0.5:
+                                insights.append(f"Growth Challenge: {ticker}'s revenue growth is notably below industry average.")
+                        
+                        if comp_margins:
+                            avg_margin = sum(comp_margins) / len(comp_margins)
+                            margin_rank = sum(1 for m in comp_margins if m < company_margin) + 1
+                            total_companies = len(comp_margins) + 1
+                            insights.append(f"Profit Margin: Ranks #{margin_rank} out of {total_companies} in the peer group.")
+                            
+                            if company_margin > avg_margin * 1.2:
+                                insights.append(f"Strong Profitability: {ticker} demonstrates superior profit margins compared to peers.")
+                            elif company_margin < avg_margin * 0.8:
+                                insights.append(f"Margin Pressure: {ticker} faces profitability challenges relative to industry standards.")
+                        
+                        fundamentals['competitor_insights'] = insights
+                        
+                    except Exception as e:
+                        print(f"Error generating insights: {str(e)}")
+                        fundamentals['competitor_insights'] = ["Unable to generate competitor insights due to data limitations."]
+                
+                # Major Holders
+                major_holders = []
+                
+                # Add institutional holders
+                institutional_holders = stock.institutional_holders
+                if institutional_holders is not None and not institutional_holders.empty:
+                    for _, holder in institutional_holders.head(3).iterrows():
+                        shares_held = holder.get('Shares', 0)
+                        shares_out = info.get('sharesOutstanding', 0)
+                        percentage = (shares_held / shares_out * 100) if shares_out > 0 else 0
+                        major_holders.append({
+                            "name": holder.get('Holder', 'Unknown Institution'),
+                            "type": "Institution",
+                            "percentage": f"{percentage:.1f}%",
+                            "shares": format_number(shares_held)
+                        })
+                
+                # Add major holders
+                major_holders_data = stock.major_holders
+                if major_holders_data is not None and not major_holders_data.empty:
+                    for _, row in major_holders_data.iterrows():
+                        if len(row) >= 2:  # Ensure we have both percentage and holder type
+                            percentage = row[0].strip().rstrip('%')  # Remove % symbol and whitespace
+                            holder_type = row[1]
+                            if "insiders" in holder_type.lower():
+                                major_holders.append({
+                                    "name": "Company Insiders",
+                                    "type": "Insiders",
+                                    "percentage": f"{float(percentage):.1f}%",
+                                    "shares": "N/A"
+                                })
+                            elif "institutions" in holder_type.lower():
+                                major_holders.append({
+                                    "name": "Total Institutional Holdings",
+                                    "type": "Institutions",
+                                    "percentage": f"{float(percentage):.1f}%",
+                                    "shares": "N/A"
+                                })
+                
+                fundamentals["major_holders"] = major_holders
+                
+                print("Successfully fetched fundamentals from Yahoo Finance")
+                return fundamentals
+                
+            except Exception as e:
+                print(f"Yahoo Finance fundamentals fetch failed: {str(e)}")
+                
+                # Try Polygon as backup
+                try:
+                    print("Attempting to fetch fundamentals from Polygon API...")
+                    details = client.get_ticker_details(ticker)
+                    fundamentals = {
+                        "name": details.name if hasattr(details, 'name') else ticker,
+                        "industry": details.sic_description if hasattr(details, 'sic_description') else "N/A",
+                        "market_cap": format_number(details.market_cap if hasattr(details, 'market_cap') else 0),
+                        "description": details.description if hasattr(details, 'description') else "No description available",
+                        
+                        # Company Overview Data
+                        "company_name": details.name if hasattr(details, 'name') else ticker,
+                        "headquarters": f"{details.locale if hasattr(details, 'locale') else 'N/A'}",
+                        "ceo": "N/A",  # Polygon doesn't provide CEO info
+                        "ceo_title": "CEO",
+                        "business_summary": details.description if hasattr(details, 'description') else "No business summary available.",
+                        "global_presence": details.locale if hasattr(details, 'locale') else "N/A",
+                        
+                        # Products and Services
+                        "products_services": [
+                            details.sic_description
+                        ] if hasattr(details, 'sic_description') else [],
+                        
+                        # Key Markets
+                        "key_markets": [
+                            {
+                                "name": "Consumer Market",
+                                "description": "Individual consumers and retail customers"
+                            },
+                            {
+                                "name": details.sic_description if hasattr(details, 'sic_description') else "Primary Market",
+                                "description": details.sic_description if hasattr(details, 'sic_description') else "Main business segment"
+                            },
+                            {
+                                "name": "Geographic Markets",
+                                "description": details.locale if hasattr(details, 'locale') else "Global operations"
+                            }
+                        ] if details.sic_description or details.locale else [
+                            {
+                                "name": "Primary Market",
+                                "description": details.description if hasattr(details, 'description') else "Main business segment"
+                            }
+                        ],
+                        
+                        # Major Holders (Polygon doesn't provide this)
+                        "major_holders": [],
+                        
+                        "ratios": {
+                            'PE Ratio': "N/A",
+                            'Forward PE': "N/A",
+                            'PEG Ratio': "N/A",
+                            'Price/Book': "N/A"
+                        },
+                        'analysis_points': ["Unable to fetch detailed financial metrics"],
+                        'recommendation': "⚪ Unable to make recommendation - Insufficient financial data",
+                        'score': "N/A"
+                    }
+                    return fundamentals
+                except Exception as e:
+                    print(f"Polygon API fundamentals fetch failed: {str(e)}")
+                    raise
+            
         except Exception as e:
-            print(f"Error fetching fundamentals for {ticker}: {e}")
+            print(f"Error in get_fundamentals for {ticker}: {str(e)}")
             return {
                 "name": ticker,
                 "industry": "N/A",
                 "market_cap": "N/A",
-                "description": "Data unavailable"
+                "description": "Data temporarily unavailable",
+                "ratios": {
+                    'PE Ratio': "N/A",
+                    'Forward PE': "N/A",
+                    'PEG Ratio': "N/A",
+                    'Price/Book': "N/A"
+                },
+                'analysis_points': ["Unable to fetch financial metrics"],
+                'recommendation': "⚪ Unable to make recommendation - Insufficient financial data",
+                'score': "N/A"
+            }
+
+    @staticmethod
+    def calculate_rsi(df):
+        """Calculate RSI (Relative Strength Index)"""
+        if df is None or len(df) < 14:
+            return None, "Neutral"
+
+        try:
+            delta = df['Close'].diff()
+            gain = delta.copy()
+            loss = delta.copy()
+            gain[gain < 0] = 0
+            loss[loss > 0] = 0
+            
+            avg_gain = gain.rolling(window=14).mean()
+            avg_loss = abs(loss.rolling(window=14).mean())
+            
+            rs = avg_gain / avg_loss
+            rsi = 100 - (100 / (1 + rs))
+            latest_rsi = rsi.iloc[-1]
+            
+            if latest_rsi > 70:
+                rsi_signal = "Overbought"
+            elif latest_rsi < 30:
+                rsi_signal = "Oversold"
+            else:
+                rsi_signal = "Neutral"
+            
+            return latest_rsi, rsi_signal
+        except Exception as e:
+            print(f"Error calculating RSI: {str(e)}")
+            return None, "Neutral"
+
+    def get_technical_analysis(self, df):
+        """Get technical analysis including RSI"""
+        try:
+            latest_rsi, rsi_signal = self.calculate_rsi(df)
+            return {
+                'rsi_value': latest_rsi,
+                'rsi_signal': rsi_signal
+            }
+        except Exception as e:
+            print(f"Error in technical analysis: {str(e)}")
+            return {
+                'rsi_value': None,
+                'rsi_signal': "Neutral"
             }

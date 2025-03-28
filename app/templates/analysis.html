@@ -2,114 +2,449 @@
 
 {% block content %}
 <div class="container mt-4">
-    <div class="row">
+<div class="row">
+        <div class="col-12 text-center mb-4">
+            <h1 class="display-4">{{ ticker }} Analysis</h1>
+        </div>
+        
         <div class="col-12">
-            <h2 class="mb-4">{{ ticker }} Analysis</h2>
-            
             {% if error %}
             <div class="alert alert-danger" role="alert">
                 {{ error }}
             </div>
             {% else %}
             <!-- Fundamental Data Card -->
-            <div class="card mb-4">
-                <div class="card-header">
+        <div class="card mb-4">
+            <div class="card-header">
                     <h4 class="mb-0">Fundamental Data</h4>
-                </div>
-                <div class="card-body">
-                    {% if fundamentals %}
-                        <h5>{{ fundamentals.get('name', 'N/A') }}</h5>
-                        <p><strong>Industry:</strong> {{ fundamentals.get('industry', 'N/A') }}</p>
-                        <p><strong>Market Cap:</strong> {{ fundamentals.get('market_cap', 'N/A') }}</p>
-                        <p>{{ fundamentals.get('description', 'No description available') }}</p>
-                    {% else %}
-                        <p>No fundamental data available</p>
-                    {% endif %}
-                </div>
             </div>
-            
-            <div class="row">
-                <!-- Price Chart Card -->
-                <div class="col-md-8">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h4 class="mb-0">Price Chart</h4>
+            <div class="card-body">
+                {% if fundamentals %}
+                    <h5>{{ fundamentals.get('name', 'N/A') }}</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p>
+                                    <strong>Industry:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="The specific industry sector in which the company operates"></i><br>
+                                    <span class="h3 fw-bold text-primary">{{ fundamentals.get('industry', 'N/A') }}</span>
+                                </p>
+                                <p>
+                                    <strong>Sector:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="The broad market category that groups similar businesses together"></i><br>
+                                    <span class="h3 fw-bold text-primary">{{ fundamentals.get('sector', 'N/A') }}</span>
+                                </p>
+                                <p>
+                                    <strong>Market Cap:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Total market value of the company's outstanding shares (Stock Price × Shares Outstanding)"></i><br>
+                                    <span class="h3 fw-bold text-primary">{{ fundamentals.get('market_cap', 'N/A') }}</span>
+                                </p>
+                                <p>
+                                    <strong>Revenue:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Total income generated from sales of goods or services over the past year"></i><br>
+                                    <span class="h3 fw-bold text-primary">{{ fundamentals.get('revenue', 'N/A') }}</span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p>
+                                    <strong>Revenue Growth:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Year-over-year percentage increase in company's revenue"></i><br>
+                                    <span class="h4 fw-bold {% if fundamentals.get('revenue_growth', '0%')|float > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ fundamentals.get('revenue_growth', 'N/A') }}
+                                    </span>
+                                </p>
+                                <p>
+                                    <strong>Profit Margin:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Percentage of revenue that translates into profit (Net Income ÷ Revenue)"></i><br>
+                                    <span class="h4 fw-bold {% if fundamentals.get('profit_margin', '0%')|float > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ fundamentals.get('profit_margin', 'N/A') }}
+                                    </span>
+                                </p>
+                                <p>
+                                    <strong>Operating Margin:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Percentage of revenue left after paying operating expenses (Operating Income ÷ Revenue)"></i><br>
+                                    <span class="h4 fw-bold {% if fundamentals.get('operating_margin', '0%')|float > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ fundamentals.get('operating_margin', 'N/A') }}
+                                    </span>
+                                </p>
+                                <p>
+                                    <strong>Free Cash Flow:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Cash left after paying for operations and capital expenditures, indicating financial flexibility"></i><br>
+                                    <span class="h4 fw-bold {% if fundamentals.get('free_cashflow', '$0')|replace('$','')|float > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {{ fundamentals.get('free_cashflow', 'N/A') }}
+                                    </span>
+                                </p>
+                            </div>
                         </div>
-                        <div class="card-body">
+                        <hr>
+                        <h5>Key Ratios</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p>
+                                    <strong>PE Ratio:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Price-to-Earnings ratio: Measures if a stock is over/undervalued (Stock Price ÷ Earnings per Share)"></i><br>
+                                    <span class="h3 fw-bold {% if fundamentals.get('ratios', {}).get('PE Ratio', '999')|float < 35 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ fundamentals.get('ratios', {}).get('PE Ratio', 'N/A') }}
+                                    </span>
+                                </p>
+                                <p>
+                                    <strong>Forward PE:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="PE ratio using projected earnings: Indicates future valuation expectations"></i><br>
+                                    <span class="h3 fw-bold {% if fundamentals.get('ratios', {}).get('Forward PE', '999')|float < 30 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ fundamentals.get('ratios', {}).get('Forward PE', 'N/A') }}
+                                    </span>
+                                </p>
+                            </div>
+                            <div class="col-md-6">
+                                <p>
+                                    <strong>PEG Ratio:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="PE ratio divided by earnings growth rate: Indicates if growth potential justifies PE ratio"></i><br>
+                                    <span class="h3 fw-bold {% if fundamentals.get('ratios', {}).get('PEG Ratio', '999')|float < 2.0 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ fundamentals.get('ratios', {}).get('PEG Ratio', 'N/A') }}
+                                    </span>
+                                </p>
+                                <p>
+                                    <strong>Price/Book:</strong>
+                                    <i class="fas fa-info-circle text-muted ms-1" data-bs-toggle="tooltip" data-bs-placement="right" title="Stock price relative to book value per share: Indicates if stock trades above/below its asset value"></i><br>
+                                    <span class="h3 fw-bold {% if fundamentals.get('ratios', {}).get('Price/Book', '999')|float < 5 %}text-success{% else %}text-warning{% endif %}">
+                                        {{ fundamentals.get('ratios', {}).get('Price/Book', 'N/A') }}
+                                    </span>
+                                </p>
+                            </div>
+                        </div>
+                        <hr>
+                        <h5>Financial Analysis</h5>
+                        <div class="alert alert-info">
+                            
+                            <ul class="list-unstyled mb-0">
+                            {% for point in fundamentals.get('analysis_points', []) %}
+                                <li class="mb-1">{{ point }}</li>
+                            {% endfor %}
+                            </ul>
+                        </div>
+                        <hr>
+                        <h5 class="mb-4">Company Overview</h5>
+                        {% if fundamentals.get('description') %}
+                            <div class="company-overview">
+                                <!-- Company Overview Section -->
+                                <div class="row mb-4">
+                                    <!-- Company Profile Card -->
+                                    <div class="col-md-4">
+                                        <div class="card h-100">
+                                            <div class="card-header bg-primary text-white">
+                                                <h5 class="mb-0">
+                                                    <i class="fas fa-building me-2"></i>Company Profile
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <h5>{{ fundamentals.get('company_name', ticker) }}</h5>
+                                                
+                                                <p class="mb-3">
+                                                    <i class="fas fa-map-marker-alt text-primary me-2"></i><strong>Headquarters:</strong><br>
+                                                    {{ fundamentals.get('headquarters', 'N/A') }}
+                                                </p>
+                                                
+                                                <p class="mb-3">
+                                                    <i class="fas fa-user-tie text-primary me-2"></i><strong>Leadership:</strong><br>
+                                                    {{ fundamentals.get('ceo', 'N/A') }}<br>
+                                                    <small class="text-muted">{{ fundamentals.get('ceo_title', 'CEO') }}</small>
+                                                </p>
+                                                
+                                                <p class="mb-0">
+                                                    <i class="fas fa-globe text-primary me-2"></i><strong>Global Presence:</strong><br>
+                                                    {{ fundamentals.get('global_presence', 'N/A') }}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Key Markets & Segments Card -->
+                                    <div class="col-md-4">
+                                        <div class="card h-100">
+                                            <div class="card-header bg-success text-white">
+                                                <h5 class="mb-0">
+                                                    <i class="fas fa-chart-pie me-2"></i>Key Markets & Segments
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                {% if fundamentals.get('key_markets') %}
+                                                    {% for market in fundamentals.get('key_markets', []) %}
+                                                    <div class="mb-3">
+                                                        <h6 class="mb-2">
+                                                            {% if 'Consumer' in market.name %}
+                                                                <i class="fas fa-users text-success me-2"></i>
+                                                            {% elif 'Geographic' in market.name %}
+                                                                <i class="fas fa-globe-americas text-success me-2"></i>
+                                                            {% else %}
+                                                                <i class="fas fa-industry text-success me-2"></i>
+                                                            {% endif %}
+                                                            {{ market.name }}
+                                                        </h6>
+                                                        <p class="text-muted small mb-0">{{ market.description }}</p>
+                                                    </div>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <div class="p-3">
+                                                        <div class="alert alert-info mb-0">
+                                                            <i class="fas fa-info-circle me-2"></i>No key markets information available
+                                                        </div>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Core Business Card -->
+                                    <div class="col-md-4">
+                                        <div class="card h-100">
+                                            <div class="card-header bg-info text-white">
+                                                <h5 class="mb-0">
+                                                    <i class="fas fa-briefcase me-2"></i>Core Business
+                                                </h5>
+                                            </div>
+                                            <div class="card-body">
+                                                <h6 class="text-info mb-3">Main Business Focus</h6>
+                                                <p class="mb-4">
+                                                    <i class="fas fa-check-circle text-info me-2"></i>{{ fundamentals.get('company_name', ticker) }}
+                                                </p>
+
+                                                <h6 class="text-info mb-3">Key Products & Services</h6>
+                                                <ul class="list-group list-group-flush">
+                                                    {% if fundamentals.get('products_services') %}
+                                                        {% for product in fundamentals.get('products_services', []) %}
+                                                            <li class="list-group-item">
+                                                                <i class="fas fa-cube text-info me-2"></i>{{ product }}
+                                                            </li>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        {% set common_products = {
+                                                            'iPhone': 'Smartphones and mobile devices',
+                                                            'Mac': 'Personal computers and laptops',
+                                                            'iPad': 'Tablets and mobile computing',
+                                                            'Services': 'Digital services and subscriptions',
+                                                            'Wearables': 'Smart watches and accessories'
+                                                        } %}
+                                                        
+                                                        {% for product, description in common_products.items() if product.lower() in fundamentals.get('business_summary', '').lower() %}
+                                                            <li class="list-group-item">
+                                                                <i class="fas fa-cube text-info me-2"></i>
+                                                                <strong>{{ product }}</strong>
+                                                                <small class="text-muted d-block ms-4">{{ description }}</small>
+                                                            </li>
+                                                        {% else %}
+                                                            <li class="list-group-item">
+                                                                <i class="fas fa-info-circle text-muted me-2"></i>No product information available
+                                                            </li>
+                                                        {% endfor %}
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p>No description available</p>
+                        {% endif %}
+                {% else %}
+                    <p>No fundamental data available</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Industry Comparison Card -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-industry me-2"></i>Industry & Sector Comparison
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if fundamentals.get('competitors') %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Metric</th>
+                                <th>{{ ticker }}</th>
+                                {% for competitor in fundamentals.get('competitors', []) %}
+                                <th>{{ competitor.symbol }}</th>
+                                {% endfor %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>PE Ratio</strong></td>
+                                <td class="fw-bold">{{ fundamentals.get('ratios', {}).get('PE Ratio', 'N/A') }}</td>
+                                {% for competitor in fundamentals.get('competitors', []) %}
+                                <td>{{ competitor.pe_ratio }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td><strong>Profit Margin</strong></td>
+                                <td class="fw-bold">{{ fundamentals.get('profit_margin', 'N/A') }}</td>
+                                {% for competitor in fundamentals.get('competitors', []) %}
+                                <td>{{ competitor.profit_margin }}</td>
+                                {% endfor %}
+                            </tr>
+                            <tr>
+                                <td><strong>Revenue Growth</strong></td>
+                                <td class="fw-bold">{{ fundamentals.get('revenue_growth', 'N/A') }}</td>
+                                {% for competitor in fundamentals.get('competitors', []) %}
+                                <td>{{ competitor.revenue_growth }}</td>
+                                {% endfor %}
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4">
+                    <h5>Industry Position</h5>
+                    <ul class="list-unstyled">
+                        {% for insight in fundamentals.get('competitor_insights', []) %}
+                        <li class="mb-2">
+                            <i class="fas fa-chart-line text-primary me-2"></i>{{ insight }}
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% else %}
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>No competitor comparison data available
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="row">
+                <!-- Price Chart Card -->
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header">
+                            <h4 class="mb-0">Price Chart</h4>
+                    </div>
+                    <div class="card-body">
                             <div id="priceChart" style="height: 400px;"></div>
+                            {% if trend_analysis %}
+                            <div class="mt-4">
+                                <div class="mb-3">
+                                    <h5 class="mb-3">Current Trend Analysis</h5>
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <strong>Trend</strong>
+                                        <strong>RSI</strong>
+                                        <strong>EMA Signal</strong>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="badge {% if trend_analysis.current_trend == 'Bullish' %}bg-success{% elif trend_analysis.current_trend == 'Bearish' %}bg-danger{% else %}bg-warning{% endif %} p-2">
+                                            {{ trend_analysis.current_trend }}
+                                        </span>
+                                        <span class="badge {% if trend_analysis.rsi_signal == 'Oversold' %}bg-success{% elif trend_analysis.rsi_signal == 'Overbought' %}bg-danger{% else %}bg-warning{% endif %} p-2">
+                                            {{ trend_analysis.rsi_value }} ({{ trend_analysis.rsi_signal }})
+                                        </span>
+                                        <span class="badge {% if trend_analysis.ema_signal == 'Bullish' %}bg-success{% else %}bg-danger{% endif %} p-2">
+                                            {{ trend_analysis.ema_signal }}
+                                        </span>
+                                    </div>
+                                    {% if trend_analysis.cross_alert %}
+                                    <div class="alert alert-info mt-3 mb-0 py-2">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <span class="text-{% if 'bullish' in trend_analysis.cross_alert %}success{% else %}danger{% endif %}">
+                                            {{ trend_analysis.cross_alert }}
+                                        </span>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
                 
                 <!-- Fibonacci Levels Card -->
-                <div class="col-md-4">
-                    <div class="card mb-4">
-                        <div class="card-header">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
                             <h4 class="mb-0">Fibonacci Levels</h4>
-                        </div>
-                        <div class="card-body">
-                            {% if fib_levels %}
-                            <ul class="list-group">
-                                {% for level, value in fib_levels.items() %}
-                                <li class="list-group-item d-flex justify-content-between align-items-center">
-                                    {{ level }}
+                    </div>
+                    <div class="card-body">
+                        {% if fib_levels %}
+                        <ul class="list-group">
+                            {% for level, value in fib_levels.items() %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                {{ level }}
                                     <span class="badge bg-primary rounded-pill">${{ "%.2f"|format(value) }}</span>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% else %}
+                        <p>No Fibonacci levels calculated</p>
+                        {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Major Shareholders Card -->
+                    <div class="card mb-4">
+                        <div class="card-header bg-dark text-white">
+                            <h4 class="mb-0">
+                                <i class="fas fa-users me-2"></i>Major Shareholders
+                            </h4>
+                        </div>
+                        <div class="card-body p-0">
+                            {% if fundamentals.get('major_holders') %}
+                            <ul class="list-group list-group-flush">
+                                {% for holder in fundamentals.get('major_holders', []) %}
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div>
+                                            <h6 class="mb-1">{{ holder.name }}</h6>
+                                            <span class="badge {% if holder.type == 'Insiders' %}bg-warning{% elif holder.type == 'Institutions' %}bg-info{% else %}bg-primary{% endif %} me-2">
+                                                {{ holder.type }}
+                                            </span>
+                                            {% if holder.shares != 'N/A' %}
+                                            <small class="text-muted">Shares: {{ holder.shares }}</small>
+                                            {% endif %}
+                                        </div>
+                                        <span class="badge bg-success fs-6">{{ holder.percentage }}</span>
+                                    </div>
                                 </li>
                                 {% endfor %}
                             </ul>
                             {% else %}
-                            <p>No Fibonacci levels calculated</p>
+                            <div class="p-3">
+                                <div class="alert alert-info mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>No major shareholders data available
+                                </div>
+                            </div>
                             {% endif %}
                         </div>
                     </div>
                 </div>
             </div>
-            
-            <!-- News Card -->
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h4 class="mb-0">Recent News</h4>
-                </div>
-                <div class="card-body">
-                    {% if news %}
-                        {% for item in news %}
-                        <div class="news-item mb-3">
-                            <h5 class="mb-1">
-                                {% if item.get('url') and item.get('url') != '#' %}
-                                    <a href="{{ item.get('url') }}" target="_blank" rel="noopener noreferrer" class="text-decoration-none">
-                                        {{ item.get('title', 'No title') }}
-                                        <i class="fas fa-external-link-alt ms-1 small"></i>
-                                    </a>
-                                {% else %}
-                                    {{ item.get('title', 'No title') }}
-                                {% endif %}
-                            </h5>
-                            <small class="text-muted d-block mb-2">
-                                <i class="far fa-clock me-1"></i>
-                                {{ item.get('published', 'No date') }}
-                            </small>
-                            <p class="mb-0">
-                                {% if item.get('description') %}
-                                    {{ item.get('description') }}
-                                    {% if item.get('url') and item.get('url') != '#' %}
-                                        <a href="{{ item.get('url') }}" target="_blank" rel="noopener noreferrer" class="ms-1">Read more</a>
-                                    {% endif %}
-                                {% else %}
-                                    No description available
-                                {% endif %}
-                            </p>
-                        </div>
-                        {% if not loop.last %}<hr class="my-3">{% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <div class="alert alert-info mb-0">
-                            <i class="fas fa-info-circle me-2"></i>
-                            No recent news available for {{ ticker }}
-                        </div>
-                    {% endif %}
-                </div>
+        </div>
+        
+        <!-- News Section -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Recent News</h5>
             </div>
-            {% endif %}
+            <div class="card-body">
+                {% if news %}
+                    {% for item in news[:6] %}
+                        <div class="news-item">
+                            <h6 class="mb-1">
+                                <a href="{{ item.url }}" target="_blank" class="text-decoration-none">{{ item.title }}</a>
+                            </h6>
+                            <p class="mb-1 text-muted small">{{ item.published }}</p>
+                            <p class="mb-0">{{ item.description }}</p>
+                        </div>
+                        {% if not loop.last %}
+                            <hr class="my-3">
+                        {% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p class="mb-0">No news available</p>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
         </div>
     </div>
 </div>
@@ -125,15 +460,12 @@
     var tickerSymbol = '{{ ticker }}';
 
     document.addEventListener('DOMContentLoaded', function() {
-        if (stockData && stockData.length > 0) {
+    if (stockData && stockData.length > 0) {
             var dates = stockData.map(function(item) { 
                 return item.Date || item.date;
             });
             var closes = stockData.map(function(item) {
                 return item.Close || item.close;
-            });
-            var ema20 = stockData.map(function(item) {
-                return item.EMA_20;
             });
             var ema50 = stockData.map(function(item) {
                 return item.EMA_50;
@@ -148,24 +480,13 @@
                 line: { color: '#2196F3', width: 2 }
             }];
 
-            if (ema20.some(function(val) { return val !== null; })) {
-                traces.push({
-                    x: dates,
-                    y: ema20,
-                    type: 'scatter',
-                    mode: 'lines',
-                    name: 'EMA 20',
-                    line: { color: '#FF9800', width: 1.5 }
-                });
-            }
-
             if (ema50.some(function(val) { return val !== null; })) {
-                traces.push({
+            traces.push({
                     x: dates,
                     y: ema50,
-                    type: 'scatter',
-                    mode: 'lines',
-                    name: 'EMA 50',
+                type: 'scatter',
+                mode: 'lines',
+                name: 'EMA 50',
                     line: { color: '#F44336', width: 1.5 }
                 });
             }
@@ -193,12 +514,19 @@
             };
 
             Plotly.newPlot('priceChart', traces, layout, {responsive: true});
-        } else {
+    } else {
             document.getElementById('priceChart').innerHTML = 
                 '<div class="alert alert-warning">No price data available for ' + tickerSymbol + '</div>';
-        }
+    }
     });
 })();
+
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
+});
 </script>
 {% endif %}
 {% endblock %}
