@@ -1,6 +1,25 @@
 {% extends "base.html" %}
 
 {% block content %}
+<style>
+.sentiment-progress {
+    display: flex;
+    align-items: center;
+}
+.progress-container {
+    flex-grow: 1;
+    background-color: #e9ecef;
+    height: 8px;
+    border-radius: 4px;
+}
+.progress-bar-custom {
+    height: 100%;
+    background-color: #198754;
+    border-radius: 4px;
+    transition: width 0.3s ease;
+}
+</style>
+
 <div class="container mt-4">
     <div class="row">
         <div class="col-12 mb-4">
@@ -49,7 +68,7 @@
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
-                        <table class="table table-hover">
+                        <table class="table table-hover align-middle">
                             <thead>
                                 <tr>
                                     <th>Stock</th>
@@ -62,11 +81,20 @@
                                 {% for stock, count in analysis.top_stocks %}
                                 <tr>
                                     <td>
-                                        <a href="{{ url_for('main.analyze', ticker=stock) }}" class="text-decoration-none">
+                                        <a href="{{ url_for('main.analyze', ticker=stock) }}" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-chart-line me-1"></i>
                                             {{ stock }}
                                         </a>
+                                        {% if stock in analysis.sentiment_results %}
+                                            {% set sentiment = analysis.sentiment_results[stock] %}
+                                            {% if sentiment.sentiment == 'Bullish 📈' %}
+                                                <span class="badge bg-success ms-1">Hot 🔥</span>
+                                            {% endif %}
+                                        {% endif %}
                                     </td>
-                                    <td>{{ count }}</td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ count }}</span>
+                                    </td>
                                     <td>
                                         {% if stock in analysis.sentiment_results %}
                                             {% set sentiment = analysis.sentiment_results[stock] %}
@@ -80,11 +108,13 @@
                                     <td>
                                         {% if stock in analysis.sentiment_results %}
                                             {% set sentiment = analysis.sentiment_results[stock] %}
-                                            <small class="text-muted">
-                                                Positive: {{ sentiment.positive }} | 
-                                                Negative: {{ sentiment.negative }} | 
-                                                Total: {{ sentiment.total }}
-                                            </small>
+                                            {% set positive_percent = (sentiment.positive / sentiment.total * 100)|round %}
+                                            <div class="sentiment-progress">
+                                                <div class="progress-container">
+                                                    <div class="progress-bar-custom" style="width: {{ positive_percent }}%"></div>
+                                                </div>
+                                                <small class="text-muted ms-2">{{ sentiment.positive }}/{{ sentiment.total }}</small>
+                                            </div>
                                         {% endif %}
                                     </td>
                                 </tr>
@@ -106,4 +136,18 @@
         </div>
     </div>
 </div>
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set the selected subreddit if it was previously chosen
+    const urlParams = new URLSearchParams(window.location.search);
+    const subreddit = urlParams.get('subreddit');
+    if (subreddit) {
+        document.getElementById('subreddit').value = subreddit;
+    }
+});
+</script>
+{% endblock %}
+
 {% endblock %} 

@@ -608,6 +608,37 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Reddit Sentiment Section -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="fab fa-reddit text-danger me-2"></i>Reddit Sentiment
+                </h4>
+                <div id="sentiment-loading" class="spinner-border spinner-border-sm text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div id="sentiment-content">
+                    <div class="text-center py-5">
+                        <div class="d-flex flex-column align-items-center">
+                            <div class="spinner-grow text-primary mb-3" style="width: 3rem; height: 3rem;" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <h5 class="text-primary mb-2">Analyzing Reddit Sentiment</h5>
+                            <div class="progress w-50 mb-3">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 100%"></div>
+                            </div>
+                            <p class="text-muted mb-0">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Fetching sentiment data from r/wallstreetbets...
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% endif %}
         </div>
     </div>
@@ -832,6 +863,188 @@ document.addEventListener('DOMContentLoaded', function() {
     var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
     var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to format sentiment data
+    function formatSentimentData(data) {
+        if (!data || !data.sentiment_results || !data.subreddit_data) {
+            return `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No recent Reddit discussions found for {{ ticker }}
+                </div>
+            `;
+        }
+
+        const ticker = '{{ ticker }}';
+        const combinedSentiment = data.sentiment_results[ticker];
+        const subredditData = data.subreddit_data;
+        
+        if (!combinedSentiment) {
+            return `
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    No sentiment data available for {{ ticker }}
+                </div>
+            `;
+        }
+
+        const positivePercent = (combinedSentiment.positive / combinedSentiment.total * 100).toFixed(1);
+        const negativePercent = (combinedSentiment.negative / combinedSentiment.total * 100).toFixed(1);
+
+        // Generate HTML for overall sentiment
+        let html = `
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card bg-dark text-white">
+                        <div class="card-body">
+                            <h5 class="mb-3">Overall Sentiment</h5>
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="me-3">
+                                    <span class="h2 mb-0 ${combinedSentiment.sentiment === 'Bullish 📈' ? 'text-success' : 'text-danger'}">
+                                        ${combinedSentiment.sentiment}
+                                    </span>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <div class="progress" style="height: 10px;">
+                                        <div class="progress-bar bg-success" 
+                                             role="progressbar" 
+                                             style="width: ${positivePercent}%" 
+                                             aria-valuenow="${positivePercent}" 
+                                             aria-valuemin="0" 
+                                             aria-valuemax="100">
+                                        </div>
+                                    </div>
+                                    <div class="d-flex justify-content-between mt-2">
+                                        <div>
+                                            <span class="badge bg-success">Positive: ${combinedSentiment.positive}</span>
+                                        </div>
+                                        <div>
+                                            <span class="badge bg-danger">Negative: ${combinedSentiment.negative}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <p class="mb-0">
+                                <i class="fas fa-comments me-2"></i>
+                                Total Mentions: <strong>${combinedSentiment.total}</strong> across all monitored subreddits
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <h5 class="mb-3">Sentiment by Subreddit</h5>
+            <div class="row">
+        `;
+
+        // Add cards for each subreddit
+        for (const [subreddit, sentiment] of Object.entries(subredditData)) {
+            if (sentiment && sentiment.total > 0) {
+                const subPositivePercent = (sentiment.positive / sentiment.total * 100).toFixed(1);
+                html += `
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">
+                                    <i class="fab fa-reddit text-danger me-2"></i>r/${subreddit}
+                                </h6>
+                                <span class="badge ${sentiment.sentiment === 'Bullish 📈' ? 'bg-success' : 'bg-danger'}">
+                                    ${sentiment.sentiment}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="progress mb-3" style="height: 8px;">
+                                    <div class="progress-bar bg-success" 
+                                         role="progressbar" 
+                                         style="width: ${subPositivePercent}%" 
+                                         aria-valuenow="${subPositivePercent}" 
+                                         aria-valuemin="0" 
+                                         aria-valuemax="100">
+                                    </div>
+                                </div>
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">
+                                        Positive: ${sentiment.positive}
+                                    </small>
+                                    <small class="text-muted">
+                                        Negative: ${sentiment.negative}
+                                    </small>
+                                    <small class="text-muted">
+                                        Total: ${sentiment.total}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        html += `
+            </div>
+            <div class="alert alert-info mt-3">
+                <i class="fas fa-info-circle me-2"></i>
+                Sentiment analysis is performed on recent posts and comments from multiple finance-focused subreddits.
+            </div>
+        `;
+
+        return html;
+    }
+
+    // Function to load sentiment data with loading animation
+    function loadSentimentData() {
+        const sentimentContent = document.getElementById('sentiment-content');
+        const loadingSpinner = document.getElementById('sentiment-loading');
+        const subredditSelect = document.getElementById('subreddit-select');
+        const selectedSubreddit = subredditSelect ? subredditSelect.value : 'wallstreetbets';
+
+        // Start loading animation
+        loadingSpinner.style.display = 'inline-block';
+
+        fetch(`/api/sentiment/{{ ticker }}?subreddit=${selectedSubreddit}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(response => {
+                if (response.success && response.data) {
+                    sentimentContent.innerHTML = formatSentimentData(response.data);
+                } else {
+                    throw new Error(response.error || 'Failed to load sentiment data');
+                }
+            })
+            .catch(error => {
+                sentimentContent.innerHTML = `
+                    <div class="alert alert-danger">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-exclamation-circle fs-4 me-3"></i>
+                            <div>
+                                <h5 class="mb-1">Error Loading Sentiment Data</h5>
+                                <p class="mb-0">${error.message}</p>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            })
+            .finally(() => {
+                loadingSpinner.style.display = 'none';
+            });
+    }
+
+    // Add event listener for subreddit selection change
+    document.addEventListener('DOMContentLoaded', function() {
+        const subredditSelect = document.getElementById('subreddit-select');
+        if (subredditSelect) {
+            subredditSelect.addEventListener('change', loadSentimentData);
+        }
+        loadSentimentData();
     });
 });
 </script>

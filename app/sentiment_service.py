@@ -6,6 +6,7 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 import os
 from app.config import Config
+import yfinance as yf
 
 # Initialize sentiment analyzer
 sentiment_analyzer = pipeline("sentiment-analysis", model=Config.SENTIMENT_MODEL)
@@ -32,15 +33,37 @@ class SentimentService:
             'THE', 'TWO', 'WAS', 'YOU', 'YES', 'NO', 'NOT', 'OFF', 'TOO', 'USE', 'USA', 'UK', 'EU',
             'NEXT', 'LAST', 'BACK', 'WELL', 'JUST', 'MAKE', 'MADE', 'MANY', 'TAKE', 'TOOK', 'VERY',
             'REAL', 'SAME', 'SOME', 'TIME', 'TRUE', 'WHAT', 'WHEN', 'WILL', 'WITH', 'YEAR', 'WANT',
-            # Add more common words as needed
+            # Common verbs and actions
+            'MOVE', 'RUN', 'COST', 'TAX', 'CASH', 'PAY', 'PAID', 'ELSE', 'EVER', 'LINE', 'PLAN', 'PLAY',
+            'STAY', 'TELL', 'THINK', 'NEED', 'LOOK', 'LIKE', 'HELP', 'WORK', 'CALL', 'TRY', 'ASK', 'SEEM',
+            'FEEL', 'KEEP', 'LET', 'READ', 'SAY', 'SAID', 'SAYS', 'TALK', 'TURN', 'WANT', 'SHOW', 'HEAR',
+            # Common nouns
+            'CAR', 'LOT', 'WAY', 'LIFE', 'DAY', 'MAN', 'MEN', 'WOMAN', 'WOMEN', 'CHILD', 'NAME', 'FACT',
+            'HOME', 'AIR', 'LINE', 'END', 'LOVE', 'HAND', 'HEAD', 'SIDE', 'EYE', 'MIND', 'DOOR', 'FACE',
+            'CASE', 'EDGE', 'BANK', 'RISK', 'KIND', 'BODY', 'CARE', 'BOOK', 'FOOD', 'KIDS', 'TEAM',
+            # Finance-related common words (when not referring to stocks)
+            'CASH', 'COST', 'TAX', 'EARN', 'LOSS', 'DEBT', 'LOAN', 'RATE', 'FUND', 'BANK', 'SAVE',
+            'DEAL', 'SALE', 'RENT', 'OWN', 'PAID', 'FREE', 'BILL', 'FEES', 'FINE', 'GAIN', 'LOST',
+            # Technology and internet common words
+            'POST', 'LINK', 'SITE', 'PAGE', 'USER', 'DATA', 'FILE', 'CODE', 'APPS', 'TECH', 'WEB',
+            # Measurements and units
+            'HIGH', 'LOW', 'BIG', 'TOP', 'DOWN', 'OVER', 'MORE', 'LESS', 'MANY', 'MUCH', 'FULL',
+            'HALF', 'PART', 'LATE', 'LONG', 'FAR', 'DEEP', 'FAST', 'SLOW', 'HARD', 'SOFT', 'HOT',
+            'COLD', 'WARM', 'COOL', 'SAFE', 'RICH', 'POOR', 'GOOD', 'BAD'
         }
         
         # Stock-related context words that increase confidence
         self.stock_context = {
             'stock', 'share', 'shares', 'ticker', '$', 'trading', 'price', 'market', 'buy', 'sell',
             'bullish', 'bearish', 'calls', 'puts', 'position', 'holding', 'portfolio', 'investor',
-            'investing', 'earnings', 'dividend', 'dividends', 'etf', 'stonk', 'stonks', 'yolo'
+            'investing', 'earnings', 'dividend', 'dividends', 'etf', 'stonk', 'stonks', 'yolo',
+            'short', 'shorted', 'shorting', 'long', 'margin', 'options', 'call', 'put', 'strike',
+            'expiry', 'itm', 'otm', 'hedge', 'resistance', 'support', 'technical', 'fundamental',
+            'analysis', 'chart', 'breakout', 'squeeze', 'volume', 'volatility', 'market cap'
         }
+        
+        # Cache for validated tickers
+        self.validated_tickers = {}
     
     def _load_nasdaq_tickers(self):
         """Load NASDAQ tickers and company names from CSV"""
@@ -68,19 +91,41 @@ class SentimentService:
         """Check if the ticker appears in a stock-related context"""
         text_lower = text.lower()
         
-        # Check for stock-related context words
-        if any(context in text_lower for context in self.stock_context):
-            return True
-            
-        # Check for common stock mention patterns
-        patterns = [
-            rf'\${ticker}',  # $TICKER
-            rf'(?:^|\s){ticker}(?:\s|$)',  # TICKER as a word
-            rf'(?:^|\s){ticker.lower()}(?:\s|$)',  # ticker as a word
-            rf'(?:^|\s){self.tickers_data[ticker]}(?:\s|$)',  # Company name
+        # First check for strong stock indicators
+        strong_indicators = [
+            rf'\${ticker}\b',  # $TICKER
+            rf'\b{ticker}(?:\s+(?:stock|share|call|put|option)s?\b)',  # TICKER stock/share/call/put
+            rf'(?:buy|sell|short|long)\s+\b{ticker}\b',  # buy/sell/short/long TICKER
+            rf'\b{ticker}\s+(?:earnings|dividend|squeeze|breakout|analysis)\b',  # TICKER earnings/dividend/etc
+            rf'(?:bullish|bearish)\s+(?:on\s+)?\b{ticker}\b',  # bullish/bearish on TICKER
         ]
         
-        return any(re.search(pattern, text, re.IGNORECASE) for pattern in patterns)
+        if any(re.search(pattern, text, re.IGNORECASE) for pattern in strong_indicators):
+            return True
+            
+        # Check for company name mentions with stock context
+        company_name = self.tickers_data[ticker]
+        company_patterns = [
+            rf'{company_name}.*?(?:stock|share|price|market|trading)',
+            rf'(?:stock|share|price|market|trading).*?{company_name}'
+        ]
+        
+        if any(re.search(pattern, text, re.IGNORECASE) for pattern in company_patterns):
+            return True
+            
+        # Count stock-related context words in the vicinity of the ticker
+        context_window = 50  # characters before and after
+        ticker_pos = text_lower.find(ticker.lower())
+        if ticker_pos != -1:
+            start = max(0, ticker_pos - context_window)
+            end = min(len(text_lower), ticker_pos + len(ticker) + context_window)
+            context_text = text_lower[start:end]
+            
+            context_word_count = sum(1 for word in self.stock_context if word in context_text)
+            if context_word_count >= 2:  # Require at least 2 context words
+                return True
+        
+        return False
     
     def _extract_stock_mentions(self, text):
         """Extract stock tickers from text with improved accuracy"""
@@ -102,6 +147,48 @@ class SentimentService:
                 valid_mentions.append(mention)
         
         return valid_mentions
+    
+    def is_valid_ticker(self, symbol):
+        """
+        Check if a symbol is a valid stock ticker by attempting to get its info from yfinance.
+        Caches results to avoid repeated API calls.
+        """
+        if symbol in self.validated_tickers:
+            return self.validated_tickers[symbol]
+        
+        try:
+            # Skip validation for common non-stock words
+            if symbol in self.exclude_words:
+                self.validated_tickers[symbol] = False
+                return False
+
+            # Try to get stock info
+            stock = yf.Ticker(symbol)
+            info = stock.info
+            
+            # Check if it's a valid stock by verifying essential fields
+            is_valid = bool(
+                info.get('symbol') and  # Must have a symbol
+                info.get('regularMarketPrice') and  # Must have a price
+                info.get('quoteType') in ['EQUITY', 'ETF']  # Must be a stock or ETF
+            )
+            
+            self.validated_tickers[symbol] = is_valid
+            return is_valid
+            
+        except Exception:
+            self.validated_tickers[symbol] = False
+            return False
+
+    def extract_tickers(self, text):
+        """Extract stock tickers from text and validate them"""
+        # Pattern for stock tickers: $TICKER or just TICKER (all caps, 1-5 characters)
+        pattern = r'\$?([A-Z]{1,5})\b'
+        matches = re.findall(pattern, text)
+        
+        # Filter out common words and validate tickers
+        valid_tickers = [ticker for ticker in matches if self.is_valid_ticker(ticker)]
+        return valid_tickers
     
     def analyze_subreddit(self, subreddit_name="wallstreetbets"):
         """Analyze stock mentions and sentiment in a subreddit"""
