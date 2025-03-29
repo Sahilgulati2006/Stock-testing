@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, render_template, redirect, url_fo
 import yfinance as yf
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
+from app.sentiment_service import SentimentService
 
 main = Blueprint('main', __name__)
 
@@ -16,8 +17,17 @@ def analyze():
         return redirect(url_for('main.home'))
     return render_template('analysis.html', ticker=ticker)
 
-@main.route('/sentiment-analysis')
+@main.route('/sentiment-analysis', methods=['GET', 'POST'])
 def sentiment_analysis():
+    if request.method == 'POST':
+        subreddit = request.form.get('subreddit', 'wallstreetbets')
+        sentiment_service = SentimentService()
+        try:
+            analysis = sentiment_service.analyze_subreddit(subreddit)
+            return render_template('sentiment.html', analysis=analysis)
+        except Exception as e:
+            return render_template('sentiment.html', error=str(e))
+    
     return render_template('sentiment.html')
 
 @main.route('/portfolio-analysis')

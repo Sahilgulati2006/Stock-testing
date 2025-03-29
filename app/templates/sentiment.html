@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12 mb-4">
+            <div class="card bg-dark text-white">
+                <div class="card-body py-4">
+                    <h1 class="display-4 mb-3">Reddit Stock Sentiment Analysis</h1>
+                    <p class="lead mb-0">Analyze stock mentions and sentiment from popular investing subreddits</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">Select Subreddit</h4>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('main.sentiment_analysis') }}">
+                        <div class="mb-3">
+                            <label for="subreddit" class="form-label">Choose a Subreddit</label>
+                            <select class="form-select" id="subreddit" name="subreddit" required>
+                                <option value="wallstreetbets">r/wallstreetbets</option>
+                                <option value="stocks">r/stocks</option>
+                                <option value="investing">r/investing</option>
+                                <option value="stockmarket">r/stockmarket</option>
+                                <option value="options">r/options</option>
+                                <option value="pennystocks">r/pennystocks</option>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-chart-line me-2"></i>Analyze Sentiment
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            {% if analysis %}
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Analysis Results</h4>
+                    <span class="badge bg-primary">r/{{ analysis.subreddit }}</span>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Stock</th>
+                                    <th>Mentions</th>
+                                    <th>Sentiment</th>
+                                    <th>Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for stock, count in analysis.top_stocks %}
+                                <tr>
+                                    <td>
+                                        <a href="{{ url_for('main.analyze', ticker=stock) }}" class="text-decoration-none">
+                                            {{ stock }}
+                                        </a>
+                                    </td>
+                                    <td>{{ count }}</td>
+                                    <td>
+                                        {% if stock in analysis.sentiment_results %}
+                                            {% set sentiment = analysis.sentiment_results[stock] %}
+                                            <span class="badge {% if sentiment.sentiment == 'Bullish 📈' %}bg-success{% elif sentiment.sentiment == 'Bearish 📉' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                                {{ sentiment.sentiment }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">N/A</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if stock in analysis.sentiment_results %}
+                                            {% set sentiment = analysis.sentiment_results[stock] %}
+                                            <small class="text-muted">
+                                                Positive: {{ sentiment.positive }} | 
+                                                Negative: {{ sentiment.negative }} | 
+                                                Total: {{ sentiment.total }}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <h5>Select a subreddit to analyze</h5>
+                    <p class="text-muted">Choose from popular investing subreddits to see what stocks are being discussed</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 
