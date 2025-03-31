@@ -1,12 +1,17 @@
-from flask import Blueprint, jsonify, request, render_template, redirect, url_for
+from flask import Blueprint, jsonify, request, render_template, redirect, url_for, session
 import yfinance as yf
 from datetime import datetime, timedelta
 from dateutil.relativedelta import relativedelta
 from app.sentiment_service import SentimentService
 from app.stock_service import StockService
+from app.portfolio_service import PortfolioService
+from app.storage_service import StorageService
 from functools import lru_cache
 
 main = Blueprint('main', __name__)
+portfolio_service = PortfolioService()
+stock_service = StockService()
+storage_service = StorageService()
 
 # Cache sentiment results for 1 hour to avoid repeated Reddit API calls
 @lru_cache(maxsize=100)
@@ -76,7 +81,6 @@ def analyze():
         
     try:
         # Get stock data and calculate indicators
-        stock_service = StockService()
         stock_data = stock_service.get_stock_data(ticker)
         stock_data = stock_service.calculate_technical_indicators(stock_data)
         
@@ -153,9 +157,174 @@ def sentiment_analysis():
     
     return render_template('sentiment.html')
 
+@main.route('/portfolio')
+def portfolio():
+    """Portfolio dashboard page"""
+    try:
+        # Load portfolio data from storage
+        portfolio_data = storage_service.load_portfolio()
+        
+        # Calculate portfolio metrics
+        metrics = portfolio_service.calculate_portfolio_metrics(portfolio_data)
+        
+        # Render template with metrics
+        return render_template('portfolio.html',
+                             portfolio_data=portfolio_data,
+                             metrics=metrics)
+                             
+    except Exception as e:
+        print(f"Error in portfolio route: {str(e)}")
+        return render_template('portfolio.html',
+                             portfolio_data={'positions': [], 'cash': 0.0},
+                             metrics={
+                                 'total_value': 0.0,
+                                 'positions': [],
+                                 'metrics': {
+                                     'daily_return': 0.0,
+                                     'weekly_return': 0.0,
+                                     'monthly_return': 0.0,
+                                     'yearly_return': 0.0,
+                                     'volatility': 0.0,
+                                     'total_growth': 0.0,
+                                     'beta': 1.0,
+                                     'var_95': 0.0
+                                 }
+                             })
+
+@main.route('/api/portfolio/add-position', methods=['POST'])
+def add_position():
+    """Add a new position to the portfolio"""
+    try:
+        data = request.get_json()
+        ticker = data.get('ticker', '').upper()
+        shares = float(data.get('shares', 0))
+        cost_basis = float(data.get('cost_basis', 0))
+        
+        if not all([ticker, shares > 0, cost_basis > 0]):
+            return jsonify({'error': 'Invalid position data'}), 400
+            
+        # Verify stock exists
+        stock_data = stock_service.get_stock_data(ticker)
+        if stock_data is None:
+            return jsonify({'error': f'Could not fetch stock data for {ticker}'}), 400
+        
+        # Load current portfolio
+        portfolio_data = storage_service.load_portfolio()
+        
+        # Check if position already exists
+        for position in portfolio_data['positions']:
+            if position['ticker'] == ticker:
+                # Update existing position with weighted average cost basis
+                total_shares = position['shares'] + shares
+                total_cost = (position['shares'] * position['cost_basis']) + (shares * cost_basis)
+                position['shares'] = total_shares
+                position['cost_basis'] = total_cost / total_shares
+                break
+        else:
+            # Add new position
+            portfolio_data['positions'].append({
+                'ticker': ticker,
+                'shares': shares,
+                'cost_basis': cost_basis
+            })
+        
+        # Save updated portfolio
+        storage_service.save_portfolio(portfolio_data)
+        
+        return jsonify({'success': True, 'message': 'Position added successfully'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@main.route('/api/portfolio/remove-position', methods=['POST'])
+def remove_position():
+    """Remove a position from the portfolio"""
+    try:
+        data = request.get_json()
+        ticker = data.get('ticker', '').upper()
+        
+        if not ticker:
+            return jsonify({'error': 'No ticker provided'}), 400
+        
+        # Load current portfolio
+        portfolio_data = storage_service.load_portfolio()
+        
+        # Remove position
+        portfolio_data['positions'] = [p for p in portfolio_data['positions'] if p['ticker'] != ticker]
+        
+        # Save updated portfolio
+        storage_service.save_portfolio(portfolio_data)
+        
+        return jsonify({'success': True, 'message': 'Position removed successfully'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@main.route('/api/portfolio/update-position', methods=['POST'])
+def update_position():
+    """Update an existing position"""
+    try:
+        data = request.get_json()
+        ticker = data.get('ticker', '').upper()
+        shares = float(data.get('shares', 0))
+        cost_basis = float(data.get('cost_basis', 0))
+        
+        if not all([ticker, shares, cost_basis]):
+            return jsonify({'error': 'Missing required fields'}), 400
+            
+        portfolio_data = storage_service.load_portfolio()
+        
+        # Update position
+        for position in portfolio_data['positions']:
+            if position['ticker'] == ticker:
+                position['shares'] = shares
+                position['cost_basis'] = cost_basis
+                break
+        else:
+            return jsonify({'error': f'Position not found: {ticker}'}), 404
+            
+        # Save updated portfolio
+        storage_service.save_portfolio(portfolio_data)
+        
+        return jsonify({'success': True, 'message': 'Position updated successfully'})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@main.route('/api/portfolio/metrics')
+def get_portfolio_metrics():
+    """Get updated portfolio metrics"""
+    try:
+        # Load portfolio data from storage
+        portfolio_data = storage_service.load_portfolio()
+        
+        # Calculate and return metrics
+        metrics = portfolio_service.calculate_portfolio_metrics(portfolio_data)
+        return jsonify(metrics)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@main.route('/api/portfolio/optimize')
+def optimize_portfolio():
+    """Get portfolio optimization suggestions"""
+    try:
+        portfolio_service = PortfolioService()
+        portfolio_data = storage_service.load_portfolio()
+        
+        if not portfolio_data['positions']:
+            return jsonify({'error': 'No positions in portfolio'}), 404
+            
+        risk_tolerance = request.args.get('risk_tolerance', 'moderate')
+        optimization_data = portfolio_service.optimize_portfolio(portfolio_data, risk_tolerance)
+        return jsonify(optimization_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @main.route('/portfolio-analysis')
 def portfolio_analysis():
-    return render_template('portfolio.html')
+    return redirect(url_for('main.portfolio'))
 
 @main.route('/api/what-if-calculator', methods=['POST'])
 def what_if_calculator():

@@ -1,0 +1,369 @@
+{% extends "base.html" %}
+
+{% block title %}Portfolio Dashboard{% endblock %}
+
+{% block styles %}
+<style>
+    .portfolio-container {
+        padding: 2rem;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+    
+    .empty-state h4 {
+        margin-bottom: 1rem;
+        color: var(--bs-body-color);
+    }
+    
+    .empty-state p {
+        color: var(--bs-secondary);
+        margin-bottom: 2rem;
+    }
+    
+    .btn-add-position {
+        padding: 0.75rem 2rem;
+        font-size: 1.1rem;
+    }
+    
+    .metric-card {
+        background: var(--bs-card-bg);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .position-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+    }
+    
+    .position-table th,
+    .position-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    
+    .positive { color: #2ecc71; }
+    .negative { color: #e74c3c; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Portfolio Dashboard</h2>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPositionModal">
+            Add Position
+        </button>
+    </div>
+    
+    {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+    
+    {% if portfolio_data.positions %}
+    <!-- Portfolio Summary -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="metric-card">
+                <h5>Total Value</h5>
+                <h3>${{ '{:,.2f}'.format(metrics.total_value) }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card">
+                <h5>Daily Return</h5>
+                <h3 class="{% if metrics.metrics.daily_return > 0 %}positive{% else %}negative{% endif %}">
+                    {{ '{:+.2f}%'.format(metrics.metrics.daily_return) }}
+                </h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="metric-card">
+                <h5>Total Growth</h5>
+                <h3 class="{% if metrics.metrics.total_growth > 0 %}positive{% else %}negative{% endif %}">
+                    {{ '{:+.2f}%'.format(metrics.metrics.total_growth) }}
+                </h3>
+            </div>
+        </div>
+    </div>
+
+    <!-- Positions Table -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Positions</h5>
+        </div>
+        <div class="card-body">
+            <table class="position-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Shares</th>
+                        <th>Cost Basis</th>
+                        <th>Current Price</th>
+                        <th>Market Value</th>
+                        <th>Unrealized G/L</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for position in metrics.positions %}
+                    <tr>
+                        <td>{{ position.ticker }}</td>
+                        <td>{{ '{:,.2f}'.format(position.shares) }}</td>
+                        <td>${{ '{:.2f}'.format(position.cost_basis) }}</td>
+                        <td>${{ '{:.2f}'.format(position.current_price) }}</td>
+                        <td>${{ '{:,.2f}'.format(position.position_value) }}</td>
+                        <td class="{% if position.unrealized_gain > 0 %}positive{% else %}negative{% endif %}">
+                            ${{ '{:+,.2f}'.format(position.unrealized_gain) }}
+                            <br>
+                            <small>({{ '{:+.2f}%'.format(position.unrealized_gain_pct) }})</small>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-danger" onclick="removePosition('{{ position.ticker }}')">
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Portfolio Allocation Chart -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Portfolio Allocation</h5>
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" id="stockView">By Stock</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="sectorView">By Sector</button>
+                    </div>
+                </div>
+                <div class="card-body" style="height: 400px;">
+                    <canvas id="portfolioAllocationChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <h4>No positions in portfolio</h4>
+        <p>Start building your investment portfolio by adding your first position</p>
+        <button class="btn btn-primary btn-add-position" data-bs-toggle="modal" data-bs-target="#addPositionModal">
+            Add Your First Position
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Add Position Modal -->
+<div class="modal fade" id="addPositionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Position</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addPositionForm">
+                    <div class="mb-3">
+                        <label for="ticker" class="form-label">Ticker Symbol</label>
+                        <input type="text" class="form-control" id="ticker" required>
+                        <div class="form-text">Enter the stock symbol (e.g., AAPL, GOOGL, MSFT)</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="shares" class="form-label">Number of Shares</label>
+                        <input type="number" class="form-control" id="shares" step="0.01" required>
+                        <div class="form-text">Enter the number of shares you own</div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="costBasis" class="form-label">Cost Basis (per share)</label>
+                        <input type="number" class="form-control" id="costBasis" step="0.01" required>
+                        <div class="form-text">Enter the average price you paid per share</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="addPosition()">Add Position</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let allocationChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Get portfolio data
+    const positions = {{ metrics.positions | tojson | safe }};
+    const totalValue = {{ metrics.total_value }};
+    
+    if (positions && positions.length > 0) {
+        // Initialize with stock view
+        createAllocationChart('stock');
+        
+        // Add event listeners for view toggles
+        document.getElementById('stockView').addEventListener('click', function() {
+            this.classList.add('active');
+            document.getElementById('sectorView').classList.remove('active');
+            createAllocationChart('stock');
+        });
+        
+        document.getElementById('sectorView').addEventListener('click', function() {
+            this.classList.add('active');
+            document.getElementById('stockView').classList.remove('active');
+            createAllocationChart('sector');
+        });
+    }
+    
+    function createAllocationChart(viewType) {
+        // Destroy existing chart if it exists
+        if (allocationChart) {
+            allocationChart.destroy();
+        }
+        
+        let chartData;
+        if (viewType === 'stock') {
+            // Stock view data
+            chartData = {
+                labels: positions.map(p => `${p.ticker} (${((p.position_value / totalValue) * 100).toFixed(2)}%)`),
+                values: positions.map(p => p.position_value)
+            };
+        } else {
+            // Sector view data
+            const sectorData = {};
+            positions.forEach(p => {
+                const sector = p.sector || 'Unknown';
+                sectorData[sector] = (sectorData[sector] || 0) + p.position_value;
+            });
+            
+            const sectors = Object.keys(sectorData);
+            const sectorValues = sectors.map(s => sectorData[s]);
+            const sectorPercentages = sectorValues.map(v => ((v / totalValue) * 100).toFixed(2));
+            
+            chartData = {
+                labels: sectors.map((s, i) => `${s} (${sectorPercentages[i]}%)`),
+                values: sectorValues
+            };
+        }
+        
+        // Generate colors
+        const colors = chartData.labels.map(() => {
+            const r = Math.floor(Math.random() * 200);
+            const g = Math.floor(Math.random() * 200);
+            const b = Math.floor(Math.random() * 200);
+            return `rgba(${r}, ${g}, ${b}, 0.8)`;
+        });
+        
+        // Create new chart
+        const ctx = document.getElementById('portfolioAllocationChart');
+        if (ctx) {
+            allocationChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        data: chartData.values,
+                        backgroundColor: colors,
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    aspectRatio: 1,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                font: {
+                                    size: 11
+                                },
+                                boxWidth: 15
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const value = context.raw;
+                                    const percentage = ((value / totalValue) * 100).toFixed(2);
+                                    return `$${value.toLocaleString()} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+    }
+});
+
+// Portfolio Management Functions
+async function addPosition() {
+    const ticker = document.getElementById('ticker').value.toUpperCase();
+    const shares = parseFloat(document.getElementById('shares').value);
+    const costBasis = parseFloat(document.getElementById('costBasis').value);
+    
+    if (!ticker || isNaN(shares) || isNaN(costBasis)) {
+        alert('Please fill in all fields with valid values');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/portfolio/add-position', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ticker, shares, cost_basis: costBasis })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to add position');
+        }
+    } catch (error) {
+        alert('Error adding position: ' + error.message);
+    }
+}
+
+async function removePosition(ticker) {
+    if (!confirm(`Are you sure you want to remove ${ticker} from your portfolio?`)) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/portfolio/remove-position', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ticker })
+        });
+        
+        if (response.ok) {
+            window.location.reload();
+        } else {
+            const data = await response.json();
+            alert(data.error || 'Failed to remove position');
+        }
+    } catch (error) {
+        alert('Error removing position: ' + error.message);
+    }
+}
+</script>
+{% endblock %} 

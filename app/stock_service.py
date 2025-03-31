@@ -57,7 +57,7 @@ class StockService:
             # Get extra days for better EMA calculation
             start = start_date - timedelta(days=200)  # Add 200 extra days for better EMA calculation
             data = yf.download(ticker, start=start, end=end_date, progress=False)
-            if data.empty:
+            if len(data.index) == 0:  # Check if DataFrame is empty using len
                 raise ValueError("No data available from Yahoo Finance")
             print(f"Successfully fetched data from Yahoo Finance ({len(data)} days)")
             return data
@@ -71,7 +71,7 @@ class StockService:
             # Try Polygon first
             try:
                 df = fetch_from_polygon()
-                if df is not None:
+                if df is not None and len(df.index) > 0:  # Check if DataFrame is not empty using len
                     print("Successfully fetched data from Polygon API")
                 else:
                     print("No data from Polygon, trying Yahoo Finance...")
@@ -82,14 +82,15 @@ class StockService:
                 df = fetch_from_yfinance()
             
             # Verify data quality
-            if df.empty:
+            if len(df.index) == 0:  # Check if DataFrame is empty using len
                 raise ValueError(f"Empty dataset returned for {ticker}")
             
             print(f"DataFrame shape: {df.shape}")
             print(f"Date range in data: {df.index.min().date()} to {df.index.max().date()}")
             print(f"Columns: {df.columns.tolist()}")
             
-            if df['Close'].isnull().all():
+            # Check for valid close prices
+            if df['Close'].isnull().all().item():  # Use .item() to get scalar boolean
                 raise ValueError(f"No valid close prices for {ticker}")
             
             # Sort the data to ensure it's in chronological order

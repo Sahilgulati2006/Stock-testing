@@ -1,0 +1,21 @@
+{
+    "positions": [
+        {
+            "ticker": "AAPL",
+            "shares": 200.0,
+            "cost_basis": 200.0
+        },
+        {
+            "ticker": "MSFT",
+            "shares": 20.0,
+            "cost_basis": 200.0
+        },
+        {
+            "ticker": "NNE",
+            "shares": 1000.0,
+            "cost_basis": 10.0
+        }
+    ],
+    "cash": 0.0,
+    "last_updated": "2025-03-30T22:12:44.845931"
+}
