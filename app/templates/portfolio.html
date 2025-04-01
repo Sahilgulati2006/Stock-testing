@@ -8,6 +8,36 @@
         padding: 2rem;
     }
     
+    /* Quote Banner Styles */
+    .quote-banner {
+        background: linear-gradient(45deg, #1a1a1a, #2c2c2c);
+        padding: 1rem;
+        margin-bottom: 2rem;
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+        height: 60px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    
+    .quote-text {
+        font-size: 1.2rem;
+        color: #fff;
+        text-align: center;
+        opacity: 0;
+        position: absolute;
+        width: 100%;
+        transition: opacity 0.5s ease-in-out;
+        font-style: italic;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+    
+    .quote-text.active {
+        opacity: 1;
+    }
+    
     .empty-state {
         text-align: center;
         padding: 4rem 2rem;
@@ -55,6 +85,17 @@
 
 {% block content %}
 <div class="portfolio-container">
+    <!-- Quote Banner -->
+    <div class="quote-banner">
+        <div class="quote-text active">I can do this all day... but the market closes at 4 PM.</div>
+        <div class="quote-text">With great capital comes great responsibility!</div>
+        <div class="quote-text">Introduce a little volatility... upset the market order, and everything becomes chaos!</div>
+        <div class="quote-text">Sometimes you gotta run before you can walk... but in the stock market, it's better to walk before you run.</div>
+        <div class="quote-text">The gains are yours, chico... and everything in between!</div>
+        <div class="quote-text">I find your lack of portfolio diversification... disturbing.</div>
+        <div class="quote-text">The market... uh... finds a way.</div>
+    </div>
+
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Portfolio Dashboard</h2>
         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addPositionModal">
@@ -136,8 +177,9 @@
         </div>
     </div>
 
-    <!-- Portfolio Allocation Chart -->
+    <!-- Portfolio Allocation Chart and Events Calendar Row -->
     <div class="row">
+        <!-- Portfolio Allocation Chart -->
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header d-flex justify-content-between align-items-center">
@@ -149,6 +191,66 @@
                 </div>
                 <div class="card-body" style="height: 400px;">
                     <canvas id="portfolioAllocationChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Events Calendar -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Upcoming Earnings</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshEvents()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="events-loading" class="text-center py-3 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                    <div id="events-content" style="max-height: 350px; overflow-y: auto;">
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Ticker</th>
+                                        <th>Event</th>
+                                        <th>EPS Info</th>
+                                        <th>Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="events-table-body">
+                                    <!-- Events will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Portfolio News -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Latest News</h5>
+                    <button class="btn btn-sm btn-outline-primary" onclick="refreshNews()">
+                        <i class="fas fa-sync-alt"></i> Refresh News
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div id="newsContainer">
+                        <div class="d-flex justify-content-center">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -198,6 +300,23 @@
         </div>
     </div>
 </div>
+
+<!-- Event Details Modal -->
+<div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content bg-dark text-light">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventDetailsModalLabel">Event Details</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="eventDetailsContent">
+                    <!-- Event details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -205,12 +324,30 @@
 <script>
 let allocationChart = null;
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Get portfolio data
-    const positions = {{ metrics.positions | tojson | safe }};
-    const totalValue = {{ metrics.total_value }};
+// Quote rotation functionality
+function rotateQuotes() {
+    const quotes = document.querySelectorAll('.quote-text');
+    let currentIndex = 0;
     
-    if (positions && positions.length > 0) {
+    setInterval(() => {
+        // Remove active class from all quotes
+        quotes.forEach(quote => quote.classList.remove('active'));
+        
+        // Add active class to next quote
+        currentIndex = (currentIndex + 1) % quotes.length;
+        quotes[currentIndex].classList.add('active');
+    }, 5000); // Change quote every 5 seconds
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize quote rotation
+    rotateQuotes();
+    
+    // Initialize portfolio data from server-side rendered template
+    const portfolioDataStr = '{{ metrics | tojson | safe }}';
+    const portfolioData = JSON.parse(portfolioDataStr);
+    
+    if (portfolioData.positions && portfolioData.positions.length > 0) {
         // Initialize with stock view
         createAllocationChart('stock');
         
@@ -226,6 +363,14 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('stockView').classList.remove('active');
             createAllocationChart('sector');
         });
+        
+        // Initialize events table
+        if (document.getElementById('events-table-body')) {
+            refreshEvents();
+        }
+        
+        // Initialize news
+        fetchNews();
     }
     
     function createAllocationChart(viewType) {
@@ -238,20 +383,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (viewType === 'stock') {
             // Stock view data
             chartData = {
-                labels: positions.map(p => `${p.ticker} (${((p.position_value / totalValue) * 100).toFixed(2)}%)`),
-                values: positions.map(p => p.position_value)
+                labels: portfolioData.positions.map(p => `${p.ticker} (${((p.position_value / portfolioData.total_value) * 100).toFixed(2)}%)`),
+                values: portfolioData.positions.map(p => p.position_value)
             };
         } else {
             // Sector view data
             const sectorData = {};
-            positions.forEach(p => {
+            portfolioData.positions.forEach(p => {
                 const sector = p.sector || 'Unknown';
                 sectorData[sector] = (sectorData[sector] || 0) + p.position_value;
             });
             
             const sectors = Object.keys(sectorData);
             const sectorValues = sectors.map(s => sectorData[s]);
-            const sectorPercentages = sectorValues.map(v => ((v / totalValue) * 100).toFixed(2));
+            const sectorPercentages = sectorValues.map(v => ((v / portfolioData.total_value) * 100).toFixed(2));
             
             chartData = {
                 labels: sectors.map((s, i) => `${s} (${sectorPercentages[i]}%)`),
@@ -298,7 +443,7 @@ document.addEventListener('DOMContentLoaded', function() {
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw;
-                                    const percentage = ((value / totalValue) * 100).toFixed(2);
+                                    const percentage = ((value / portfolioData.total_value) * 100).toFixed(2);
                                     return `$${value.toLocaleString()} (${percentage}%)`;
                                 }
                             }
@@ -363,6 +508,251 @@ async function removePosition(ticker) {
         }
     } catch (error) {
         alert('Error removing position: ' + error.message);
+    }
+}
+
+// News Functions
+async function fetchNews() {
+    try {
+        const response = await fetch('/api/portfolio/news');
+        if (!response.ok) throw new Error('Failed to fetch news');
+        const news = await response.json();
+        
+        const newsContainer = document.getElementById('newsContainer');
+        if (!news || news.length === 0) {
+            newsContainer.innerHTML = '<p class="text-center text-muted">No recent news found for your portfolio stocks.</p>';
+            return;
+        }
+        
+        const newsHtml = news.map(article => `
+            <div class="news-item mb-3 p-3 border-bottom">
+                <div class="d-flex justify-content-between align-items-start">
+                    <h6 class="mb-1">${article.ticker}</h6>
+                    <small class="text-muted">${article.date}</small>
+                </div>
+                <h5 class="mb-2">${article.title}</h5>
+                <p class="mb-2">${article.summary}</p>
+                <a href="${article.url}" target="_blank" class="btn btn-sm btn-outline-primary">Read More</a>
+            </div>
+        `).join('');
+        
+        newsContainer.innerHTML = newsHtml;
+    } catch (error) {
+        console.error('Error fetching news:', error);
+        document.getElementById('newsContainer').innerHTML = 
+            '<div class="alert alert-danger">Failed to load news. Please try again later.</div>';
+    }
+}
+
+async function refreshNews() {
+    const newsContainer = document.getElementById('newsContainer');
+    newsContainer.innerHTML = `
+        <div class="d-flex justify-content-center">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+    `;
+    await fetchNews();
+}
+
+// Add JavaScript for Events Calendar
+function refreshEvents() {
+    const loadingDiv = document.getElementById('events-loading');
+    const contentDiv = document.getElementById('events-content');
+    const tableBody = document.getElementById('events-table-body');
+    
+    loadingDiv.classList.remove('d-none');
+    contentDiv.style.opacity = '0.5';
+    
+    fetch('/api/portfolio/events')
+        .then(response => response.json())
+        .then(events => {
+            tableBody.innerHTML = '';
+            
+            if (events.length === 0) {
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center">No upcoming earnings found</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            events.forEach(event => {
+                const row = document.createElement('tr');
+                let epsInfo = '';
+                if (event.details.estimated_eps && event.details.estimated_eps !== 'N/A') {
+                    epsInfo += `Est: ${event.details.estimated_eps}`;
+                }
+                if (event.details.current_eps && event.details.current_eps !== 'N/A') {
+                    epsInfo += `${epsInfo ? '<br>' : ''}Current: ${event.details.current_eps}`;
+                }
+                
+                // Create a data attribute with the stringified details
+                const detailsStr = JSON.stringify(event.details).replace(/"/g, '&quot;');
+                
+                row.innerHTML = `
+                    <td>${event.date}</td>
+                    <td>${event.ticker}</td>
+                    <td><span class="badge ${event.type === 'Earnings Call' ? 'bg-primary' : 'bg-info'}">${event.type}</span></td>
+                    <td>${epsInfo || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" data-details='${detailsStr}' onclick="showEventDetails(this.dataset.details)">
+                            <i class="fas fa-info-circle"></i> Details
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        })
+        .catch(error => {
+            console.error('Error fetching events:', error);
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="5" class="text-center text-danger">
+                        Error loading events. Please try again later.
+                    </td>
+                </tr>
+            `;
+        })
+        .finally(() => {
+            loadingDiv.classList.add('d-none');
+            contentDiv.style.opacity = '1';
+        });
+}
+
+function showEventDetails(detailsStr) {
+    const details = JSON.parse(detailsStr);
+    const modalContent = document.getElementById('eventDetailsContent');
+    const modalTitle = document.getElementById('eventDetailsModalLabel');
+    
+    // Set modal title based on event type
+    modalTitle.textContent = `${details.company} - ${details.event_type}`;
+    
+    // Create content based on event type
+    let content = '';
+    
+    // Helper function to create analyst recommendation badge
+    function getRecommendationBadge(recommendation) {
+        const badgeClass = {
+            'Strong buy': 'bg-success',
+            'Buy': 'bg-primary',
+            'Hold': 'bg-warning',
+            'Sell': 'bg-danger',
+            'Strong sell': 'bg-danger'
+        }[recommendation] || 'bg-secondary';
+        
+        return `<span class="badge ${badgeClass}">${recommendation}</span>`;
+    }
+    
+    // Helper function to format upside potential
+    function formatUpsidePotential(value) {
+        if (value === null || value === undefined || value === 'N/A') return 'N/A';
+        const formatted = value.toFixed(2);
+        const isPositive = value > 0;
+        return `<span class="${isPositive ? 'text-success' : 'text-danger'}">${isPositive ? '+' : ''}${formatted}%</span>`;
+    }
+    
+    switch(details.event_type) {
+        case 'Earnings Call':
+        case 'EPS Update':
+            const targets = details.analyst_targets;
+            content = `
+                <div class="mb-4">
+                    <h6 class="text-primary mb-3">AI Financial Analysis</h6>
+                    <div class="card bg-dark border-primary mb-4">
+                        <div class="card-body">
+                            <p class="mb-0">${details.financial_summary}</p>
+                        </div>
+                    </div>
+                    
+                    <h6 class="text-primary mb-3">Analyst Price Targets</h6>
+                    <div class="card bg-dark border-primary mb-4">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Current Price:</strong> $${targets.current_price}</p>
+                                    <p><strong>Mean Target:</strong> $${targets.target_mean}</p>
+                                    <p><strong>Median Target:</strong> $${targets.target_median}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>High Target:</strong> $${targets.target_high}</p>
+                                    <p><strong>Low Target:</strong> $${targets.target_low}</p>
+                                    <p><strong>Analysts Coverage:</strong> ${targets.number_of_analysts}</p>
+                                </div>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <p><strong>Recommendation:</strong> ${getRecommendationBadge(targets.recommendation)}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Upside Potential:</strong> ${formatUpsidePotential(targets.upside_potential)}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h6 class="text-primary mb-3">Key Financial Metrics</h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <p><strong>Revenue Growth:</strong> ${formatMetric(details.key_metrics.revenue_growth, 'percent')}</p>
+                            <p><strong>Profit Margins:</strong> ${formatMetric(details.key_metrics.profit_margins, 'percent')}</p>
+                            <p><strong>Operating Margins:</strong> ${formatMetric(details.key_metrics.operating_margins, 'percent')}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Return on Equity:</strong> ${formatMetric(details.key_metrics.return_on_equity, 'percent')}</p>
+                            <p><strong>Debt to Equity:</strong> ${formatMetric(details.key_metrics.debt_to_equity, 'ratio')}</p>
+                        </div>
+                    </div>
+                    
+                    <h6 class="text-primary mb-3">${details.event_type === 'Earnings Call' ? 'Earnings' : 'EPS'} Information</h6>
+                    <div class="row">
+                        ${details.event_type === 'Earnings Call' ? `
+                        <div class="col-md-6">
+                            <p><strong>Quarter:</strong> ${details.quarter}</p>
+                            <p><strong>Date:</strong> ${details.date}</p>
+                            <p><strong>Time:</strong> ${details.time}</p>
+                        </div>
+                        ` : ''}
+                        <div class="col-${details.event_type === 'Earnings Call' ? 'md-6' : '12'}">
+                            <p><strong>Current EPS:</strong> ${details.current_eps}</p>
+                            <p><strong>Estimated EPS:</strong> ${details.estimated_eps}</p>
+                            <p><strong>EPS Growth:</strong> ${details.eps_growth}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            break;
+            
+        case 'Error':
+            content = `
+                <div class="mb-4 text-danger">
+                    <p>${details.message}</p>
+                    <p class="text-muted mt-2"><small>Timestamp: ${details.timestamp}</small></p>
+                </div>
+            `;
+            break;
+    }
+    
+    modalContent.innerHTML = content;
+    
+    // Show the modal
+    const modal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
+    modal.show();
+}
+
+// Helper function to format metrics
+function formatMetric(value, type) {
+    if (value === 'N/A' || value === null || value === undefined) return 'N/A';
+    
+    switch(type) {
+        case 'percent':
+            return `${(value * 100).toFixed(2)}%`;
+        case 'ratio':
+            return value.toFixed(2);
+        default:
+            return value;
     }
 }
 </script>

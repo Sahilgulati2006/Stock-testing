@@ -7,6 +7,7 @@ from app.stock_service import StockService
 from app.portfolio_service import PortfolioService
 from app.storage_service import StorageService
 from functools import lru_cache
+from app.web_search import web_search
 
 main = Blueprint('main', __name__)
 portfolio_service = PortfolioService()
@@ -384,4 +385,244 @@ def what_if_calculator():
         
     except Exception as e:
         print(f"Error in what-if calculator: {str(e)}")
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
+
+@main.route('/api/portfolio/news')
+def get_portfolio_news():
+    """Get latest news for portfolio stocks"""
+    try:
+        from app.tools import web_search
+        
+        # Load portfolio data from storage
+        portfolio_data = storage_service.load_portfolio()
+        if not portfolio_data.get('positions'):
+            return jsonify([])
+        
+        all_news = []
+        # Get news for each stock in portfolio
+        for position in portfolio_data['positions']:
+            ticker = position['ticker']
+            try:
+                # Search for recent news about the stock
+                search_query = f"{ticker} stock market news"
+                news_results = web_search(search_query, explanation=f"Fetching news for {ticker}")
+                
+                # Format the news results
+                if isinstance(news_results, list):
+                    for result in news_results:
+                        news_item = {
+                            'ticker': ticker,
+                            'title': result.get('title', f'News about {ticker}'),
+                            'summary': result.get('snippet', 'No summary available'),
+                            'url': result.get('url', '#'),
+                            'date': result.get('date', 'Recent')
+                        }
+                        all_news.append(news_item)
+            except Exception as e:
+                print(f"Error fetching news for {ticker}: {str(e)}")
+                # Add a fallback news item
+                all_news.append({
+                    'ticker': ticker,
+                    'title': f'Market updates for {ticker}',
+                    'summary': 'Unable to fetch latest news. Please try again later.',
+                    'url': f'https://finance.yahoo.com/quote/{ticker}',
+                    'date': 'Recent'
+                })
+        
+        return jsonify(all_news)
+        
+    except Exception as e:
+        print(f"Error in portfolio news route: {str(e)}")
+        return jsonify([{
+            'ticker': 'System',
+            'title': 'News Service Temporarily Unavailable',
+            'summary': 'We are unable to fetch news at the moment. Please try again later.',
+            'url': '#',
+            'date': 'Now'
+        }])
+
+@main.route('/api/portfolio/events')
+def get_portfolio_events():
+    """Get upcoming earnings and significant events for portfolio stocks"""
+    try:
+        import yfinance as yf
+        from datetime import datetime, timedelta
+        
+        # Load portfolio data from storage
+        portfolio_data = storage_service.load_portfolio()
+        if not portfolio_data.get('positions'):
+            return jsonify([])
+        
+        all_events = []
+        # Get events for each stock in portfolio
+        for position in portfolio_data['positions']:
+            ticker = position['ticker']
+            try:
+                # Get stock info using yfinance
+                stock = yf.Ticker(ticker)
+                stock_info = stock.info
+                company_name = stock_info.get('longName', ticker)
+                
+                # Get earnings information
+                try:
+                    # Get current and estimated EPS
+                    eps_data = {
+                        'current_eps': stock_info.get('trailingEps', 'N/A'),
+                        'estimated_eps': stock_info.get('forwardEps', 'N/A'),
+                        'eps_growth': stock_info.get('earningsQuarterlyGrowth', 'N/A')
+                    }
+                    
+                    # Get analyst price targets
+                    analyst_data = {
+                        'current_price': stock_info.get('regularMarketPrice', 'N/A'),
+                        'target_mean': stock_info.get('targetMeanPrice', 'N/A'),
+                        'target_high': stock_info.get('targetHighPrice', 'N/A'),
+                        'target_low': stock_info.get('targetLowPrice', 'N/A'),
+                        'target_median': stock_info.get('targetMedianPrice', 'N/A'),
+                        'number_of_analysts': stock_info.get('numberOfAnalystOpinions', 'N/A'),
+                        'recommendation': stock_info.get('recommendationKey', 'N/A').capitalize(),
+                        'upside_potential': None
+                    }
+                    
+                    # Calculate upside potential if we have both current price and mean target
+                    if (analyst_data['current_price'] != 'N/A' and 
+                        analyst_data['target_mean'] != 'N/A' and
+                        analyst_data['current_price'] > 0):
+                        analyst_data['upside_potential'] = (
+                            (analyst_data['target_mean'] - analyst_data['current_price']) / 
+                            analyst_data['current_price'] * 100
+                        )
+                    
+                    # Generate AI summary of financial performance
+                    summary = generate_financial_summary(stock_info)
+                    
+                    # Try to get next earnings date
+                    if 'earningsDate' in stock_info:
+                        earnings_timestamp = stock_info['earningsDate']
+                        if isinstance(earnings_timestamp, list) and earnings_timestamp:
+                            earnings_date = datetime.fromtimestamp(earnings_timestamp[0])
+                            
+                            # Only add if earnings date is in the future
+                            if earnings_date > datetime.now():
+                                quarter = (earnings_date.month-1)//3 + 1
+                                fiscal_year = earnings_date.year
+                                all_events.append({
+                                    'ticker': ticker,
+                                    'type': 'Earnings Call',
+                                    'date': earnings_date.strftime('%Y-%m-%d'),
+                                    'description': f'Q{quarter} {fiscal_year} Earnings Release',
+                                    'details': {
+                                        'event_type': 'Earnings Call',
+                                        'company': company_name,
+                                        'quarter': f'Q{quarter} {fiscal_year}',
+                                        'date': earnings_date.strftime('%B %d, %Y'),
+                                        'time': 'After Market Close',
+                                        'current_eps': f"${eps_data['current_eps']}" if eps_data['current_eps'] != 'N/A' else 'N/A',
+                                        'estimated_eps': f"${eps_data['estimated_eps']}" if eps_data['estimated_eps'] != 'N/A' else 'N/A',
+                                        'eps_growth': f"{eps_data['eps_growth']}%" if eps_data['eps_growth'] != 'N/A' else 'N/A',
+                                        'financial_summary': summary,
+                                        'analyst_targets': analyst_data,
+                                        'key_metrics': {
+                                            'revenue_growth': stock_info.get('revenueGrowth', 'N/A'),
+                                            'profit_margins': stock_info.get('profitMargins', 'N/A'),
+                                            'operating_margins': stock_info.get('operatingMargins', 'N/A'),
+                                            'return_on_equity': stock_info.get('returnOnEquity', 'N/A'),
+                                            'debt_to_equity': stock_info.get('debtToEquity', 'N/A')
+                                        }
+                                    }
+                                })
+                    
+                    # Add placeholder if no earnings date found but we have EPS data
+                    elif eps_data['estimated_eps'] != 'N/A':
+                        all_events.append({
+                            'ticker': ticker,
+                            'type': 'EPS Update',
+                            'date': 'Upcoming',
+                            'description': f"Est. EPS: ${eps_data['estimated_eps']}",
+                            'details': {
+                                'event_type': 'EPS Update',
+                                'company': company_name,
+                                'current_eps': f"${eps_data['current_eps']}" if eps_data['current_eps'] != 'N/A' else 'N/A',
+                                'estimated_eps': f"${eps_data['estimated_eps']}" if eps_data['estimated_eps'] != 'N/A' else 'N/A',
+                                'eps_growth': f"{eps_data['eps_growth']}%" if eps_data['eps_growth'] != 'N/A' else 'N/A',
+                                'financial_summary': summary,
+                                'analyst_targets': analyst_data,
+                                'key_metrics': {
+                                    'revenue_growth': stock_info.get('revenueGrowth', 'N/A'),
+                                    'profit_margins': stock_info.get('profitMargins', 'N/A'),
+                                    'operating_margins': stock_info.get('operatingMargins', 'N/A'),
+                                    'return_on_equity': stock_info.get('returnOnEquity', 'N/A'),
+                                    'debt_to_equity': stock_info.get('debtToEquity', 'N/A')
+                                }
+                            }
+                        })
+                        
+                except Exception as e:
+                    print(f"Error getting earnings info for {ticker}: {str(e)}")
+                    
+            except Exception as e:
+                print(f"Error fetching events for {ticker}: {str(e)}")
+                continue
+        
+        # Sort events by date
+        all_events.sort(key=lambda x: x['date'] if x['date'] != 'Upcoming' else '9999-12-31')
+        
+        return jsonify(all_events)
+        
+    except Exception as e:
+        print(f"Error in portfolio events route: {str(e)}")
+        return jsonify([{
+            'ticker': 'System',
+            'type': 'Error',
+            'date': 'Now',
+            'description': 'Unable to fetch events. Please try again later.',
+            'details': {
+                'event_type': 'Error',
+                'message': str(e),
+                'timestamp': datetime.now().strftime('%B %d, %Y %H:%M:%S')
+            }
+        }])
+
+def generate_financial_summary(stock_info):
+    """Generate an AI summary of the company's financial performance"""
+    try:
+        # Extract key metrics
+        metrics = {
+            'revenue_growth': stock_info.get('revenueGrowth', 'N/A'),
+            'profit_margins': stock_info.get('profitMargins', 'N/A'),
+            'operating_margins': stock_info.get('operatingMargins', 'N/A'),
+            'return_on_equity': stock_info.get('returnOnEquity', 'N/A'),
+            'debt_to_equity': stock_info.get('debtToEquity', 'N/A'),
+            'forward_pe': stock_info.get('forwardPE', 'N/A'),
+            'trailing_pe': stock_info.get('trailingPE', 'N/A'),
+            'price_to_book': stock_info.get('priceToBook', 'N/A'),
+            'beta': stock_info.get('beta', 'N/A')
+        }
+        
+        # Generate summary based on metrics
+        summary = []
+        
+        if metrics['revenue_growth'] not in ['N/A', None]:
+            growth = metrics['revenue_growth'] * 100
+            summary.append(f"Revenue growth is {growth:.1f}%, indicating {'strong' if growth > 10 else 'moderate' if growth > 0 else 'negative'} top-line expansion.")
+        
+        if metrics['profit_margins'] not in ['N/A', None]:
+            margins = metrics['profit_margins'] * 100
+            summary.append(f"Profit margins at {margins:.1f}% suggest {'excellent' if margins > 20 else 'good' if margins > 10 else 'fair' if margins > 5 else 'concerning'} profitability.")
+        
+        if metrics['return_on_equity'] not in ['N/A', None]:
+            roe = metrics['return_on_equity'] * 100
+            summary.append(f"Return on equity of {roe:.1f}% shows {'very efficient' if roe > 20 else 'efficient' if roe > 15 else 'moderate' if roe > 10 else 'inefficient'} use of shareholder capital.")
+        
+        if metrics['debt_to_equity'] not in ['N/A', None]:
+            summary.append(f"Debt-to-equity ratio of {metrics['debt_to_equity']:.2f} indicates {'high' if metrics['debt_to_equity'] > 2 else 'moderate' if metrics['debt_to_equity'] > 1 else 'conservative'} leverage.")
+        
+        if metrics['forward_pe'] not in ['N/A', None]:
+            summary.append(f"Forward P/E of {metrics['forward_pe']:.1f} suggests the stock is {'expensive' if metrics['forward_pe'] > 25 else 'reasonably valued' if metrics['forward_pe'] > 15 else 'potentially undervalued'} relative to earnings expectations.")
+        
+        # Join summaries with proper spacing
+        return " ".join(summary) if summary else "Insufficient data to generate a financial summary."
+        
+    except Exception as e:
+        print(f"Error generating financial summary: {str(e)}")
+        return "Unable to generate financial summary due to insufficient data." 
