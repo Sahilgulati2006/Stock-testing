@@ -6,6 +6,7 @@ from app.sentiment_service import SentimentService
 from app.stock_service import StockService
 from app.portfolio_service import PortfolioService
 from app.storage_service import StorageService
+from app.market_sentiment_service import MarketSentimentService
 from functools import lru_cache
 from app.web_search import web_search
 
@@ -13,6 +14,7 @@ main = Blueprint('main', __name__)
 portfolio_service = PortfolioService()
 stock_service = StockService()
 storage_service = StorageService()
+market_sentiment_service = MarketSentimentService()
 
 # Cache sentiment results for 1 hour to avoid repeated Reddit API calls
 @lru_cache(maxsize=100)
@@ -625,4 +627,24 @@ def generate_financial_summary(stock_info):
         
     except Exception as e:
         print(f"Error generating financial summary: {str(e)}")
-        return "Unable to generate financial summary due to insufficient data." 
+        return "Unable to generate financial summary due to insufficient data."
+
+@main.route('/api/market-sentiment')
+def get_market_sentiment():
+    """Get the current market sentiment (Fear & Greed Index)"""
+    try:
+        sentiment_data = market_sentiment_service.get_fear_greed_index()
+        return jsonify(sentiment_data)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'value': 50,
+            'category': 'Neutral',
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            'signals': ['Error fetching market sentiment'],
+            'indicators': {
+                'vix': 50,
+                'momentum': 50,
+                'volume': 50
+            }
+        }), 500 
