@@ -20,7 +20,7 @@
         border-radius: 12px;
         position: relative;
         overflow: hidden;
-        height: 70px;
+        height: 80px;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -35,16 +35,21 @@
         opacity: 0;
         position: absolute;
         width: 100%;
-        transition: opacity 0.5s ease-in-out;
+        transform: translateY(20px);
+        transition: all 0.5s ease-in-out;
         font-style: italic;
         font-weight: 300;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         padding: 0 2rem;
         letter-spacing: 0.5px;
+        pointer-events: none;
+        visibility: hidden;
     }
     
     .quote-text.active {
         opacity: 1;
+        transform: translateY(0);
+        visibility: visible;
     }
     
     .empty-state {
@@ -487,17 +492,50 @@ let allocationChart = null;
 
 // Quote rotation functionality
 function rotateQuotes() {
-    const quotes = document.querySelectorAll('.quote-text');
-    let currentIndex = 0;
+    const quotes = Array.from(document.querySelectorAll('.quote-text'));
+    let previousIndex = -1;
+    
+    function getRandomIndex(max) {
+        let newIndex;
+        do {
+            newIndex = Math.floor(Math.random() * max);
+        } while (newIndex === previousIndex && max > 1);
+        previousIndex = newIndex;
+        return newIndex;
+    }
+    
+    // Hide all quotes initially
+    quotes.forEach(quote => {
+        quote.style.visibility = 'hidden';
+        quote.classList.remove('active');
+    });
+    
+    // Show initial random quote
+    const initialIndex = getRandomIndex(quotes.length);
+    quotes[initialIndex].style.visibility = 'visible';
+    quotes[initialIndex].classList.add('active');
     
     setInterval(() => {
-        // Remove active class from all quotes
-        quotes.forEach(quote => quote.classList.remove('active'));
+        // Hide all quotes first
+        quotes.forEach(quote => {
+            quote.classList.remove('active');
+            setTimeout(() => {
+                quote.style.visibility = 'hidden';
+            }, 500); // Match the transition duration
+        });
         
-        // Add active class to next quote
-        currentIndex = (currentIndex + 1) % quotes.length;
-        quotes[currentIndex].classList.add('active');
-    }, 5000); // Change quote every 5 seconds
+        // Show new random quote
+        const randomIndex = getRandomIndex(quotes.length);
+        const selectedQuote = quotes[randomIndex];
+        selectedQuote.style.visibility = 'visible';
+        
+        // Use requestAnimationFrame to ensure the visibility change has taken effect
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                selectedQuote.classList.add('active');
+            });
+        });
+    }, 7000); // Increased to 7 seconds for better readability
 }
 
 document.addEventListener('DOMContentLoaded', function() {
