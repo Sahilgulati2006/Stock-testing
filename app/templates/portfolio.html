@@ -603,13 +603,19 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         }
         
-        // Generate colors
-        const colors = chartData.labels.map(() => {
-            const r = Math.floor(Math.random() * 200);
-            const g = Math.floor(Math.random() * 200);
-            const b = Math.floor(Math.random() * 200);
-            return `rgba(${r}, ${g}, ${b}, 0.8)`;
-        });
+        // Enhanced color palette with better contrast and visual appeal
+        const colorPalette = [
+            'rgba(54, 162, 235, 0.9)',   // Blue
+            'rgba(255, 99, 132, 0.9)',    // Pink
+            'rgba(75, 192, 192, 0.9)',    // Teal
+            'rgba(255, 159, 64, 0.9)',    // Orange
+            'rgba(153, 102, 255, 0.9)',   // Purple
+            'rgba(255, 205, 86, 0.9)',    // Yellow
+            'rgba(201, 203, 207, 0.9)',   // Grey
+            'rgba(100, 255, 150, 0.9)',   // Green
+            'rgba(255, 100, 200, 0.9)',   // Rose
+            'rgba(150, 150, 255, 0.9)'    // Light Blue
+        ];
         
         // Create new chart
         const ctx = document.getElementById('portfolioAllocationChart');
@@ -620,32 +626,94 @@ document.addEventListener('DOMContentLoaded', function() {
                     labels: chartData.labels,
                     datasets: [{
                         data: chartData.values,
-                        backgroundColor: colors,
-                        borderWidth: 1
+                        backgroundColor: chartData.labels.map((_, i) => colorPalette[i % colorPalette.length]),
+                        borderWidth: 2,
+                        borderColor: '#2c2c2c',
+                        hoverBorderColor: '#fff',
+                        hoverBorderWidth: 3,
+                        hoverOffset: 15
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: true,
-                    aspectRatio: 1,
+                    aspectRatio: 1.5,
+                    layout: {
+                        padding: {
+                            left: 20,
+                            right: 20,
+                            top: 20,
+                            bottom: 20
+                        }
+                    },
                     plugins: {
                         legend: {
                             position: 'right',
                             labels: {
                                 font: {
-                                    size: 11
+                                    family: "'Inter', sans-serif",
+                                    size: 14,
+                                    weight: '500'
                                 },
-                                boxWidth: 15
-                            }
+                                padding: 15,
+                                boxWidth: 30,
+                                boxHeight: 30,
+                                color: '#fff',
+                                generateLabels: (chart) => {
+                                    const data = chart.data;
+                                    if (data.labels.length && data.datasets.length) {
+                                        return data.labels.map((label, i) => ({
+                                            text: label,
+                                            fillStyle: data.datasets[0].backgroundColor[i],
+                                            strokeStyle: data.datasets[0].borderColor,
+                                            lineWidth: 2,
+                                            hidden: false,
+                                            index: i
+                                        }));
+                                    }
+                                    return [];
+                                }
+                            },
+                            onClick: null // Disable legend item clicking
                         },
                         tooltip: {
+                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                            titleFont: {
+                                family: "'Poppins', sans-serif",
+                                size: 16,
+                                weight: '600'
+                            },
+                            bodyFont: {
+                                family: "'Inter', sans-serif",
+                                size: 14
+                            },
+                            padding: 12,
+                            cornerRadius: 8,
+                            displayColors: true,
+                            boxWidth: 10,
+                            boxHeight: 10,
+                            boxPadding: 3,
                             callbacks: {
                                 label: function(context) {
                                     const value = context.raw;
                                     const percentage = ((value / portfolioData.total_value) * 100).toFixed(2);
-                                    return `$${value.toLocaleString()} (${percentage}%)`;
+                                    return [
+                                        `Value: $${value.toLocaleString()}`,
+                                        `Percentage: ${percentage}%`
+                                    ];
                                 }
                             }
+                        }
+                    },
+                    animation: {
+                        animateScale: true,
+                        animateRotate: true,
+                        duration: 1000,
+                        easing: 'easeInOutQuart'
+                    },
+                    elements: {
+                        arc: {
+                            borderAlign: 'inner'
                         }
                     }
                 }

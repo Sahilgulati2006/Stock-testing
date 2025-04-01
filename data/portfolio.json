@@ -1,16 +1,36 @@
 {
     "positions": [
         {
-            "ticker": "AAPL",
-            "shares": 50.0,
-            "cost_basis": 100.0
+            "ticker": "SPCB",
+            "shares": 62.0,
+            "cost_basis": 8.94
         },
         {
-            "ticker": "PLTR",
-            "shares": 50.0,
-            "cost_basis": 25.0
+            "ticker": "HOOD",
+            "shares": 5.0,
+            "cost_basis": 39.45
+        },
+        {
+            "ticker": "NBIS",
+            "shares": 34.7,
+            "cost_basis": 32.19
+        },
+        {
+            "ticker": "RKLB",
+            "shares": 65.0,
+            "cost_basis": 22.46
+        },
+        {
+            "ticker": "VRT",
+            "shares": 5.33,
+            "cost_basis": 113.4
+        },
+        {
+            "ticker": "NVDA",
+            "shares": 6.8,
+            "cost_basis": 130.18
         }
     ],
     "cash": 0.0,
-    "last_updated": "2025-03-31T20:29:30.826880"
+    "last_updated": "2025-03-31T23:03:31.030900"
 }
