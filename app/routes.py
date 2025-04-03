@@ -335,61 +335,183 @@ def portfolio_analysis():
 def what_if_calculator():
     try:
         data = request.get_json()
-        initial_investment = float(data.get('initial_investment', 0))
-        ticker = data.get('ticker', '').upper()
-        start_date = datetime.strptime(data.get('start_date', ''), '%Y-%m-%d')
+        ticker = data.get('ticker')
+        start_date = data.get('start_date')
+        investment_type = data.get('investment_type', 'lumpsum')
         
-        if not all([initial_investment, ticker, start_date]):
-            return jsonify({'error': 'Missing required parameters'}), 400
+        if not ticker or not start_date:
+            return jsonify({
+                'error': 'Please provide both ticker and start date'
+            })
+        
+        # Convert start_date string to datetime
+        start_date = datetime.strptime(start_date, '%Y-%m-%d')
+        current_date = datetime.now()
+        
+        if start_date > current_date:
+            return jsonify({
+                'error': 'Start date cannot be in the future'
+            })
             
-        # Get historical data from start date to today
-        stock = yf.Ticker(ticker)
-        hist = stock.history(start=start_date)
-        
-        if hist.empty:
-            return jsonify({'error': f'No historical data available for {ticker}'}), 404
+        # Get historical data
+        try:
+            stock = yf.Ticker(ticker)
+            hist = stock.history(start=start_date)
             
-        # Calculate returns
-        start_price = hist.iloc[0]['Close']
-        current_price = hist.iloc[-1]['Close']
+            if hist.empty:
+                return jsonify({
+                    'error': f'No historical data available for {ticker}'
+                })
+                
+            # Ensure we have the closing price data
+            if 'Close' not in hist.columns:
+                return jsonify({
+                    'error': f'Price data unavailable for {ticker}'
+                })
+        except Exception as e:
+            print(f"Error fetching stock data: {str(e)}")
+            return jsonify({
+                'error': f'Unable to fetch data for {ticker}. Please try again.'
+            })
         
-        # Calculate investment values
-        shares = initial_investment / start_price
-        current_value = shares * current_price
-        
-        # Calculate returns
-        total_return = current_value - initial_investment
-        total_return_percentage = (total_return / initial_investment) * 100
-        
-        # Calculate time period
-        today = datetime.now()
-        years = relativedelta(today, start_date).years
-        months = relativedelta(today, start_date).months
-        
-        if years > 0:
-            time_period = f"{years} year{'s' if years != 1 else ''}"
-            if months > 0:
-                time_period += f", {months} month{'s' if months != 1 else ''}"
+        if investment_type == 'lumpsum':
+            try:
+                initial_investment = float(data.get('initial_investment', 0))
+                if initial_investment <= 0:
+                    return jsonify({
+                        'error': 'Initial investment must be greater than 0'
+                    })
+                
+                # Calculate returns for lump sum investment
+                first_price = hist['Close'].iloc[0]
+                last_price = hist['Close'].iloc[-1]
+                shares = initial_investment / first_price
+                current_value = shares * last_price
+                total_return = ((current_value - initial_investment) / initial_investment) * 100
+                
+                # Calculate XIRR
+                dates = [start_date, current_date]
+                cashflows = [-initial_investment, current_value]
+                xirr = calculate_xirr(dates, cashflows)
+                
+                return jsonify({
+                    'current_value': current_value,
+                    'total_return_percentage': total_return,
+                    'total_invested': initial_investment,
+                    'xirr': xirr
+                })
+            except Exception as e:
+                print(f"Error in lump sum calculation: {str(e)}")
+                return jsonify({
+                    'error': 'Error calculating lump sum returns. Please check your inputs.'
+                })
+            
+        elif investment_type == 'sip':
+            try:
+                monthly_investment = float(data.get('monthly_investment', 0))
+                initial_investment = float(data.get('initial_investment', 0))
+                
+                if monthly_investment <= 0:
+                    return jsonify({
+                        'error': 'Monthly investment must be greater than 0'
+                    })
+                
+                # Calculate SIP returns
+                total_invested = initial_investment
+                current_value = 0
+                dates = []
+                cashflows = []
+                total_shares = 0
+                
+                # Initial investment
+                if initial_investment > 0:
+                    first_price = hist['Close'].iloc[0]
+                    shares = initial_investment / first_price
+                    total_shares += shares
+                    dates.append(start_date)
+                    cashflows.append(-initial_investment)
+                
+                # Monthly investments
+                current_month = start_date
+                
+                while current_month <= current_date:
+                    # Get the month's data
+                    month_mask = (hist.index.year == current_month.year) & (hist.index.month == current_month.month)
+                    month_data = hist[month_mask]
+                    
+                    if not month_data.empty:
+                        # Use the average price for the month
+                        month_price = month_data['Close'].mean()
+                        shares = monthly_investment / month_price
+                        total_shares += shares
+                        total_invested += monthly_investment
+                        
+                        # Add to cashflow for XIRR calculation
+                        dates.append(current_month)
+                        cashflows.append(-monthly_investment)
+                    
+                    # Move to next month
+                    current_month = current_month + relativedelta(months=1)
+                
+                # Calculate final value
+                if total_shares > 0:
+                    current_value = total_shares * hist['Close'].iloc[-1]
+                    
+                    # Add final value for XIRR calculation
+                    dates.append(current_date)
+                    cashflows.append(current_value)
+                    
+                    # Calculate returns
+                    if total_invested > 0:
+                        total_return = ((current_value - total_invested) / total_invested) * 100
+                        xirr = calculate_xirr(dates, cashflows)
+                    else:
+                        total_return = 0
+                        xirr = 0
+                        
+                    return jsonify({
+                        'current_value': current_value,
+                        'total_return_percentage': total_return,
+                        'total_invested': total_invested,
+                        'xirr': xirr
+                    })
+                else:
+                    return jsonify({
+                        'error': 'No investments were made in the specified period'
+                    })
+                    
+            except Exception as e:
+                print(f"Error in SIP calculation: {str(e)}")
+                return jsonify({
+                    'error': 'Error calculating SIP returns. Please check your inputs.'
+                })
         else:
-            time_period = f"{months} month{'s' if months != 1 else ''}"
+            return jsonify({
+                'error': 'Invalid investment type'
+            })
             
-        # Calculate annualized return
-        total_years = years + (months / 12)
-        if total_years > 0:
-            annual_return = ((current_value / initial_investment) ** (1 / total_years) - 1) * 100
-        else:
-            annual_return = total_return_percentage
-            
-        return jsonify({
-            'current_value': current_value,
-            'total_return_percentage': total_return_percentage,
-            'time_period': time_period,
-            'annual_return': annual_return
-        })
-        
     except Exception as e:
-        print(f"Error in what-if calculator: {str(e)}")
-        return jsonify({'error': str(e)}), 500
+        print(f"Error in what_if_calculator: {str(e)}")
+        return jsonify({
+            'error': 'An error occurred while calculating returns. Please try again.'
+        })
+
+def calculate_xirr(dates, cashflows):
+    """Calculate the XIRR given dates and cashflows"""
+    try:
+        years = [(date - dates[0]).days / 365 for date in dates]
+        
+        def xnpv(rate):
+            return sum([cf / (1 + rate) ** year for cf, year in zip(cashflows, years)])
+            
+        def xirr_objective(rate):
+            return xnpv(rate)
+            
+        from scipy.optimize import newton
+        rate = newton(xirr_objective, x0=0.1)
+        return rate * 100
+    except:
+        return 0  # Return 0 if XIRR calculation fails
 
 @main.route('/api/portfolio/news')
 def get_portfolio_news():

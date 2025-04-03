@@ -363,26 +363,70 @@
                 <div class="col-md-6">
                     <form id="whatIfForm" class="mb-3">
                         <div class="mb-3">
-                            <label class="form-label">Initial Investment</label>
-                            <div class="input-group">
-                                <span class="input-group-text">$</span>
-                                <input type="number" 
-                                       class="form-control" 
-                                       id="initialInvestment" 
-                                       placeholder="1000" 
-                                       min="0.01" 
-                                       step="0.01" 
-                                       required>
+                            <label class="form-label">Investment Type</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="investmentType" id="lumpsum" value="lumpsum" checked>
+                                <label class="btn btn-outline-primary" for="lumpsum">Lump Sum</label>
+                                
+                                <input type="radio" class="btn-check" name="investmentType" id="sip" value="sip">
+                                <label class="btn btn-outline-primary" for="sip">SIP</label>
                             </div>
                         </div>
+
+                        <div id="lumpsumFields">
+                            <div class="mb-3">
+                                <label class="form-label">Initial Investment</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="initialInvestment" 
+                                           placeholder="1000" 
+                                           min="0.01" 
+                                           step="0.01" 
+                                           required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="sipFields" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">Monthly Investment</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="monthlyInvestment" 
+                                           placeholder="100" 
+                                           min="0.01" 
+                                           step="0.01">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Initial Investment (Optional)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="sipInitialInvestment" 
+                                           placeholder="0" 
+                                           min="0" 
+                                           step="0.01">
+                                </div>
+                                <div class="form-text">Additional lump sum amount to invest at start</div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label">Stock Ticker</label>
                             <input type="text" class="form-control" id="whatIfTicker" placeholder="AAPL" required>
                         </div>
+
                         <div class="mb-3">
-                            <label class="form-label">Investment Date</label>
+                            <label class="form-label">Start Date</label>
                             <input type="date" class="form-control" id="investmentDate" required>
                         </div>
+
                         <button type="submit" class="btn btn-primary">
                             Calculate Returns
                         </button>
@@ -422,11 +466,11 @@
                                     <div class="col-6">
                                         <div class="d-flex align-items-center">
                                             <div class="feature-icon me-2 bg-info bg-opacity-25">
-                                                <i class="fas fa-calendar text-info"></i>
+                                                <i class="fas fa-money-bill-wave text-info"></i>
                                             </div>
                                             <div>
-                                                <small class="text-muted">Time Period</small>
-                                                <strong id="timePeriod" class="d-block text-white">0 years</strong>
+                                                <small class="text-muted">Total Invested</small>
+                                                <strong id="totalInvested" class="d-block text-white">$0</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -436,8 +480,8 @@
                                                 <i class="fas fa-percentage text-warning"></i>
                                             </div>
                                             <div>
-                                                <small class="text-muted">Annual Return</small>
-                                                <strong id="annualReturn" class="d-block text-white">0%</strong>
+                                                <small class="text-muted">XIRR</small>
+                                                <strong id="xirrReturn" class="d-block text-white">0%</strong>
                                             </div>
                                         </div>
                                     </div>
@@ -737,12 +781,58 @@
     });
 
     // What If Calculator
+    document.addEventListener('DOMContentLoaded', function() {
+        const investmentTypeRadios = document.getElementsByName('investmentType');
+        const lumpsumFields = document.getElementById('lumpsumFields');
+        const sipFields = document.getElementById('sipFields');
+        
+        // Handle investment type toggle
+        investmentTypeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                if (this.value === 'lumpsum') {
+                    lumpsumFields.style.display = 'block';
+                    sipFields.style.display = 'none';
+                    document.getElementById('initialInvestment').required = true;
+                    document.getElementById('monthlyInvestment').required = false;
+                } else {
+                    lumpsumFields.style.display = 'none';
+                    sipFields.style.display = 'block';
+                    document.getElementById('initialInvestment').required = false;
+                    document.getElementById('monthlyInvestment').required = true;
+                }
+            });
+        });
+
+        // Set max date to today
+        const today = new Date();
+        const investmentDate = document.getElementById('investmentDate');
+        investmentDate.max = today.toISOString().split('T')[0];
+        
+        // Set default date to 1 year ago
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        investmentDate.value = oneYearAgo.toISOString().split('T')[0];
+    });
+
     document.getElementById('whatIfForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
-        const initialInvestment = parseFloat(document.getElementById('initialInvestment').value);
+        const investmentType = document.querySelector('input[name="investmentType"]:checked').value;
         const ticker = document.getElementById('whatIfTicker').value.toUpperCase();
         const startDate = document.getElementById('investmentDate').value;
+        
+        let requestData = {
+            ticker: ticker,
+            start_date: startDate,
+            investment_type: investmentType
+        };
+
+        if (investmentType === 'lumpsum') {
+            requestData.initial_investment = parseFloat(document.getElementById('initialInvestment').value);
+        } else {
+            requestData.monthly_investment = parseFloat(document.getElementById('monthlyInvestment').value);
+            requestData.initial_investment = parseFloat(document.getElementById('sipInitialInvestment').value) || 0;
+        }
         
         try {
             const response = await fetch('/api/what-if-calculator', {
@@ -750,11 +840,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({
-                    initial_investment: initialInvestment,
-                    ticker: ticker,
-                    start_date: startDate
-                })
+                body: JSON.stringify(requestData)
             });
             
             const data = await response.json();
@@ -767,18 +853,27 @@
             }
             
             // Update results
-            document.getElementById('currentValue').textContent = `$${data.current_value.toLocaleString('en-US', {maximumFractionDigits: 2})}`;
+            document.getElementById('currentValue').textContent = formatCurrency(data.current_value);
             document.getElementById('totalReturn').textContent = `${data.total_return_percentage.toFixed(2)}%`;
-            document.getElementById('timePeriod').textContent = data.time_period;
-            document.getElementById('annualReturn').textContent = `${data.annual_return.toFixed(2)}%`;
+            document.getElementById('totalInvested').textContent = formatCurrency(data.total_invested);
+            document.getElementById('xirrReturn').textContent = `${data.xirr.toFixed(2)}%`;
             
             // Update summary text
             const summaryText = document.getElementById('summaryText');
-            summaryText.innerHTML = `
-                If you had invested $${initialInvestment.toLocaleString()} in ${ticker} on ${new Date(startDate).toLocaleDateString()}, 
-                your investment would be worth $${data.current_value.toLocaleString('en-US', {maximumFractionDigits: 2})} today, 
-                representing a ${data.total_return_percentage > 0 ? 'gain' : 'loss'} of ${Math.abs(data.total_return_percentage).toFixed(2)}%.
-            `;
+            if (investmentType === 'lumpsum') {
+                summaryText.innerHTML = `
+                    If you had invested ${formatCurrency(requestData.initial_investment)} in ${ticker} on ${formatDate(startDate)}, 
+                    your investment would be worth ${formatCurrency(data.current_value)} today, 
+                    representing a ${data.total_return_percentage > 0 ? 'gain' : 'loss'} of ${Math.abs(data.total_return_percentage).toFixed(2)}%.
+                `;
+            } else {
+                summaryText.innerHTML = `
+                    With a monthly investment of ${formatCurrency(requestData.monthly_investment)} in ${ticker} starting from ${formatDate(startDate)}
+                    ${requestData.initial_investment > 0 ? ` and an initial investment of ${formatCurrency(requestData.initial_investment)}` : ''}, 
+                    your total investment of ${formatCurrency(data.total_invested)} would be worth ${formatCurrency(data.current_value)} today, 
+                    achieving an XIRR of ${data.xirr.toFixed(2)}%.
+                `;
+            }
             
             // Show results
             document.getElementById('whatIfResults').classList.remove('d-none');
@@ -790,6 +885,22 @@
             document.getElementById('errorMessage').textContent = 'An error occurred while calculating returns. Please try again.';
         }
     });
+
+    function formatCurrency(value) {
+        return new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency: 'USD',
+            minimumFractionDigits: 2
+        }).format(value);
+    }
+
+    function formatDate(dateString) {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
 </script>
 {% endblock %}
 {% endblock %}
