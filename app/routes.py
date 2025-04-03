@@ -710,3 +710,79 @@ def chat_with_warren():
             'response': "Even the best investors face uncertainty sometimes. Could you rephrase your question?",
             'type': 'error'
         }), 500 
+
+@main.route('/api/market/indices')
+def get_market_indices():
+    """Get real-time data for major market indices using their ETF equivalents"""
+    try:
+        print("Starting to fetch market indices data...")
+        
+        # Define the ETFs that track major indices
+        indices = {
+            'SPY': 'SPY',  # S&P 500 ETF
+            'QQQ': 'QQQ',  # NASDAQ 100 ETF
+            'DIA': 'DIA',  # Dow Jones ETF
+            'IWM': 'IWM'   # Russell 2000 ETF
+        }
+        
+        result = {}
+        
+        # Fetch data for each ETF using a more direct approach
+        for symbol in indices:
+            try:
+                print(f"Fetching data for {symbol}...")
+                stock = yf.Ticker(symbol)
+                
+                # Get real-time quote data
+                quote = stock.fast_info
+                if quote:
+                    print(f"Got quote data for {symbol}")
+                    result[symbol] = {
+                        'current': float(quote.last_price if quote.last_price else quote.regular_market_price),
+                        'open': float(quote.regular_market_open),
+                        'high': float(quote.regular_market_high),
+                        'low': float(quote.regular_market_low),
+                        'volume': int(quote.regular_market_volume)
+                    }
+                    print(f"Processed data for {symbol}: {result[symbol]}")
+                else:
+                    print(f"No quote data available for {symbol}")
+                    
+            except Exception as e:
+                print(f"Error processing {symbol}: {str(e)}")
+                # Try alternate method if first method fails
+                try:
+                    print(f"Trying alternate method for {symbol}...")
+                    hist = stock.history(period='1d')
+                    if not hist.empty:
+                        result[symbol] = {
+                            'current': float(hist['Close'].iloc[-1]),
+                            'open': float(hist['Open'].iloc[0]),
+                            'high': float(hist['High'].max()),
+                            'low': float(hist['Low'].min()),
+                            'volume': int(hist['Volume'].sum())
+                        }
+                        print(f"Alternate method succeeded for {symbol}: {result[symbol]}")
+                except Exception as e2:
+                    print(f"Alternate method also failed for {symbol}: {str(e2)}")
+                continue
+        
+        if not result:
+            error_msg = "Could not fetch data for any indices"
+            print(error_msg)
+            raise Exception(error_msg)
+        
+        print(f"Successfully fetched data for {len(result)} indices")
+        return jsonify(result)
+        
+    except Exception as e:
+        error_msg = f"Error in get_market_indices: {str(e)}"
+        print(error_msg)
+        # Return some default data instead of error to prevent UI from being stuck
+        default_data = {
+            'SPY': {'current': 0, 'open': 0, 'high': 0, 'low': 0, 'volume': 0},
+            'QQQ': {'current': 0, 'open': 0, 'high': 0, 'low': 0, 'volume': 0},
+            'DIA': {'current': 0, 'open': 0, 'high': 0, 'low': 0, 'volume': 0},
+            'IWM': {'current': 0, 'open': 0, 'high': 0, 'low': 0, 'volume': 0}
+        }
+        return jsonify(default_data) 

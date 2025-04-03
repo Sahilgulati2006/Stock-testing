@@ -1,5 +1,128 @@
 {% extends "base.html" %}
 
+{% block styles %}
+<style>
+    /* Existing styles */
+    .hover-card {
+        transition: transform 0.2s ease-in-out;
+    }
+    
+    .hover-card:hover {
+        transform: translateY(-5px);
+    }
+    
+    .feature-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(var(--bs-primary-rgb), 0.1);
+    }
+    
+    /* Market Indices Styles */
+    .market-indices-section {
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .indices-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1.5rem;
+        margin: 0 auto;
+    }
+    
+    .index-card {
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 12px;
+        padding: 1.5rem;
+        border: 1px solid rgba(255,255,255,0.1);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    
+    .index-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+    }
+    
+    .index-name {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #fff;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .index-symbol {
+        font-size: 0.9rem;
+        color: #DAA520;
+        font-weight: 500;
+    }
+    
+    .index-price {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #fff;
+        margin: 0.5rem 0;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    .index-change {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+    
+    .index-change i {
+        font-size: 1rem;
+    }
+    
+    .index-change.positive {
+        color: #00C851;
+    }
+    
+    .index-change.negative {
+        color: #ff4444;
+    }
+    
+    .index-details {
+        margin-top: 1rem;
+        padding-top: 1rem;
+        border-top: 1px solid rgba(255,255,255,0.1);
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+    
+    .detail-item {
+        font-size: 0.9rem;
+    }
+    
+    .detail-label {
+        color: #888;
+        font-size: 0.8rem;
+    }
+    
+    .detail-value {
+        color: #fff;
+        font-weight: 500;
+    }
+    
+    .index-update-time {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 1rem;
+        text-align: right;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="hero-section text-center py-4" style="background: linear-gradient(135deg, #2b1b3b 0%, #432b63 100%); min-height: 40vh; display: flex; align-items: center;">
     <div class="container">
@@ -17,6 +140,141 @@
                         </button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- After the hero section and before the container div -->
+<div class="market-indices-section py-4" style="background: linear-gradient(180deg, #2b1b3b 0%, #1a1a1a 100%);">
+    <div class="container">
+        <div class="indices-grid">
+            <div class="index-card">
+                <div class="index-name">
+                    <i class="fas fa-chart-line"></i>
+                    S&P 500
+                    <span class="index-symbol">SPY</span>
+                </div>
+                <div class="index-price">Loading...</div>
+                <div class="index-change">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Loading...
+                </div>
+                <div class="index-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Open</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">High</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Low</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Volume</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                </div>
+                <div class="index-update-time">Last updated: --</div>
+            </div>
+
+            <div class="index-card">
+                <div class="index-name">
+                    <i class="fas fa-microchip"></i>
+                    NASDAQ 100
+                    <span class="index-symbol">QQQ</span>
+                </div>
+                <div class="index-price">Loading...</div>
+                <div class="index-change">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Loading...
+                </div>
+                <div class="index-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Open</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">High</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Low</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Volume</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                </div>
+                <div class="index-update-time">Last updated: --</div>
+            </div>
+
+            <div class="index-card">
+                <div class="index-name">
+                    <i class="fas fa-building"></i>
+                    Dow Jones
+                    <span class="index-symbol">DIA</span>
+                </div>
+                <div class="index-price">Loading...</div>
+                <div class="index-change">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Loading...
+                </div>
+                <div class="index-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Open</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">High</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Low</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Volume</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                </div>
+                <div class="index-update-time">Last updated: --</div>
+            </div>
+
+            <div class="index-card">
+                <div class="index-name">
+                    <i class="fas fa-chart-bar"></i>
+                    Russell 2000
+                    <span class="index-symbol">IWM</span>
+                </div>
+                <div class="index-price">Loading...</div>
+                <div class="index-change">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    Loading...
+                </div>
+                <div class="index-details">
+                    <div class="detail-item">
+                        <div class="detail-label">Open</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">High</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Low</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Volume</div>
+                        <div class="detail-value">--</div>
+                    </div>
+                </div>
+                <div class="index-update-time">Last updated: --</div>
             </div>
         </div>
     </div>
@@ -248,26 +506,238 @@
         margin-top: 0.5rem;
     }
 }
+
+/* Market Indices Styles */
+.market-indices-section {
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+}
+
+.indices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1.5rem;
+    margin: 0 auto;
+}
+
+.index-card {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.index-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+}
+
+.index-name {
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.index-symbol {
+    font-size: 0.9rem;
+    color: #DAA520;
+    font-weight: 500;
+}
+
+.index-price {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #fff;
+    margin: 0.5rem 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.index-change {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    font-weight: 500;
+}
+
+.index-change i {
+    font-size: 1rem;
+}
+
+.index-change.positive {
+    color: #00C851;
+}
+
+.index-change.negative {
+    color: #ff4444;
+}
+
+.index-details {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+}
+
+.detail-item {
+    font-size: 0.9rem;
+}
+
+.detail-label {
+    color: #888;
+    font-size: 0.8rem;
+}
+
+.detail-value {
+    color: #fff;
+    font-weight: 500;
+}
+
+.index-update-time {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 1rem;
+    text-align: right;
+}
 </style>
 
 {% block scripts %}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const whatIfForm = document.getElementById('whatIfForm');
-    const resultsDiv = document.getElementById('whatIfResults');
-    const errorDiv = document.getElementById('whatIfError');
-    
-    // Set max date to today
-    const today = new Date();
-    const investmentDate = document.getElementById('investmentDate');
-    investmentDate.max = today.toISOString().split('T')[0];
-    
-    // Set default date to 1 year ago
-    const oneYearAgo = new Date();
-    oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-    investmentDate.value = oneYearAgo.toISOString().split('T')[0];
-    
-    whatIfForm.addEventListener('submit', async function(e) {
+    // Market Indices Functions
+    function formatNumber(number, type = 'price') {
+        if (!number || number === 0) return '--';
+        
+        if (type === 'price') {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2
+            }).format(number);
+        } else if (type === 'volume') {
+            return new Intl.NumberFormat('en-US', {
+                notation: 'compact',
+                compactDisplay: 'short'
+            }).format(number);
+        }
+        return number;
+    }
+
+    function updateIndexCard(symbol, data) {
+        // Find the card by iterating through all cards and checking the symbol text
+        const cards = document.querySelectorAll('.index-card');
+        let card = null;
+        cards.forEach(c => {
+            const symbolElement = c.querySelector('.index-symbol');
+            if (symbolElement && symbolElement.textContent === symbol) {
+                card = c;
+            }
+        });
+
+        if (!card) {
+            console.error(`Could not find card for symbol ${symbol}`);
+            return;
+        }
+
+        try {
+            console.log(`Updating card for ${symbol} with data:`, data);
+            const priceChange = data.current - data.open;
+            const percentChange = (priceChange / data.open) * 100;
+            const isPositive = priceChange >= 0;
+
+            // Update price and change
+            const priceElement = card.querySelector('.index-price');
+            const changeElement = card.querySelector('.index-change');
+            
+            if (data.current === 0) {
+                priceElement.textContent = 'Loading...';
+                changeElement.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+            } else {
+                priceElement.textContent = formatNumber(data.current);
+                changeElement.className = `index-change ${isPositive ? 'positive' : 'negative'}`;
+                changeElement.innerHTML = `
+                    <i class="fas fa-${isPositive ? 'caret-up' : 'caret-down'}"></i>
+                    ${formatNumber(Math.abs(priceChange))} (${Math.abs(percentChange).toFixed(2)}%)
+                `;
+            }
+
+            // Update details
+            const details = card.querySelector('.index-details');
+            details.innerHTML = `
+                <div class="detail-item">
+                    <div class="detail-label">Open</div>
+                    <div class="detail-value">${formatNumber(data.open)}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">High</div>
+                    <div class="detail-value">${formatNumber(data.high)}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Low</div>
+                    <div class="detail-value">${formatNumber(data.low)}</div>
+                </div>
+                <div class="detail-item">
+                    <div class="detail-label">Volume</div>
+                    <div class="detail-value">${formatNumber(data.volume, 'volume')}</div>
+                </div>
+            `;
+
+            // Update timestamp
+            card.querySelector('.index-update-time').textContent = 
+                `Last updated: ${new Date().toLocaleTimeString()}`;
+                
+            console.log(`Successfully updated card for ${symbol}`);
+        } catch (error) {
+            console.error(`Error updating card for ${symbol}:`, error);
+            if (card) {
+                card.querySelector('.index-price').textContent = 'Error';
+                card.querySelector('.index-change').innerHTML = '<i class="fas fa-exclamation-circle"></i> Data unavailable';
+            }
+        }
+    }
+
+    async function fetchMarketIndices() {
+        try {
+            console.log('Fetching market indices...');
+            const response = await fetch('/api/market/indices');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            
+            if (data.error) {
+                console.error('Error from API:', data.error);
+                return;
+            }
+            
+            console.log('Received market data:', data);
+            Object.entries(data).forEach(([symbol, indexData]) => {
+                console.log(`Processing ${symbol}:`, indexData);
+                updateIndexCard(symbol, indexData);
+            });
+        } catch (error) {
+            console.error('Error fetching market indices:', error);
+        }
+    }
+
+    // Initialize and set up auto-refresh
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('DOM loaded, initializing market indices...');
+        // Initial fetch
+        fetchMarketIndices();
+        
+        // Refresh every minute
+        setInterval(fetchMarketIndices, 60000);
+    });
+
+    // What If Calculator
+    document.getElementById('whatIfForm').addEventListener('submit', async function(e) {
         e.preventDefault();
         
         const initialInvestment = parseFloat(document.getElementById('initialInvestment').value);
@@ -290,9 +760,9 @@ document.addEventListener('DOMContentLoaded', function() {
             const data = await response.json();
             
             if (data.error) {
-                errorDiv.classList.remove('d-none');
-                resultsDiv.classList.add('d-none');
-                errorDiv.querySelector('#errorMessage').textContent = data.error;
+                document.getElementById('whatIfError').classList.remove('d-none');
+                document.getElementById('whatIfResults').classList.add('d-none');
+                document.getElementById('errorMessage').textContent = data.error;
                 return;
             }
             
@@ -311,16 +781,15 @@ document.addEventListener('DOMContentLoaded', function() {
             `;
             
             // Show results
-            resultsDiv.classList.remove('d-none');
-            errorDiv.classList.add('d-none');
+            document.getElementById('whatIfResults').classList.remove('d-none');
+            document.getElementById('whatIfError').classList.add('d-none');
             
         } catch (error) {
-            errorDiv.classList.remove('d-none');
-            resultsDiv.classList.add('d-none');
-            errorDiv.querySelector('#errorMessage').textContent = 'An error occurred while calculating returns. Please try again.';
+            document.getElementById('whatIfError').classList.remove('d-none');
+            document.getElementById('whatIfResults').classList.add('d-none');
+            document.getElementById('errorMessage').textContent = 'An error occurred while calculating returns. Please try again.';
         }
     });
-});
 </script>
 {% endblock %}
 {% endblock %}
