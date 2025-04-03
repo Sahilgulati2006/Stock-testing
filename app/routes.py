@@ -869,25 +869,24 @@ def get_market_indices():
                     print(f"Processed data for {symbol}: {result[symbol]}")
                 else:
                     print(f"No quote data available for {symbol}")
+                    # Try alternate method if first method fails
+                    try:
+                        print(f"Trying alternate method for {symbol}...")
+                        hist = stock.history(period='1d')
+                        if not hist.empty:
+                            result[symbol] = {
+                                'current': float(hist['Close'].iloc[-1]),
+                                'open': float(hist['Open'].iloc[0]),
+                                'high': float(hist['High'].max()),
+                                'low': float(hist['Low'].min()),
+                                'volume': int(hist['Volume'].sum())
+                            }
+                            print(f"Alternate method succeeded for {symbol}: {result[symbol]}")
+                    except Exception as e2:
+                        print(f"Alternate method also failed for {symbol}: {str(e2)}")
                     
             except Exception as e:
                 print(f"Error processing {symbol}: {str(e)}")
-                # Try alternate method if first method fails
-                try:
-                    print(f"Trying alternate method for {symbol}...")
-                    hist = stock.history(period='1d')
-                    if not hist.empty:
-                        result[symbol] = {
-                            'current': float(hist['Close'].iloc[-1]),
-                            'open': float(hist['Open'].iloc[0]),
-                            'high': float(hist['High'].max()),
-                            'low': float(hist['Low'].min()),
-                            'volume': int(hist['Volume'].sum())
-                        }
-                        print(f"Alternate method succeeded for {symbol}: {result[symbol]}")
-                except Exception as e2:
-                    print(f"Alternate method also failed for {symbol}: {str(e2)}")
-                continue
         
         if not result:
             error_msg = "Could not fetch data for any indices"
@@ -907,4 +906,57 @@ def get_market_indices():
             'DIA': {'current': 0, 'open': 0, 'high': 0, 'low': 0, 'volume': 0},
             'IWM': {'current': 0, 'open': 0, 'high': 0, 'low': 0, 'volume': 0}
         }
-        return jsonify(default_data) 
+        return jsonify(default_data)
+
+@main.route('/api/fibonacci-from-point', methods=['POST'])
+def calculate_fibonacci_from_point():
+    """Calculate Fibonacci levels from a selected point"""
+    try:
+        # Add CORS headers
+        if request.method == 'OPTIONS':
+            headers = {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'POST',
+                'Access-Control-Allow-Headers': 'Content-Type'
+            }
+            return ('', 204, headers)
+
+        # Add CORS headers to the response
+        response_headers = {
+            'Access-Control-Allow-Origin': '*'
+        }
+        
+        data = request.get_json()
+        ticker = data.get('ticker')
+        selected_date = data.get('selected_date')
+        
+        if not ticker or not selected_date:
+            return jsonify({
+                'error': 'Please provide both ticker and selected date'
+            }), 400, response_headers
+            
+        # Get stock data
+        stock_data = stock_service.get_stock_data(ticker)
+        if stock_data is None:
+            return jsonify({
+                'error': f'Could not fetch data for {ticker}'
+            }), 404, response_headers
+            
+        # Calculate Fibonacci levels from the selected point
+        fib_levels = stock_service.calculate_fibonacci_from_point(stock_data, selected_date)
+        
+        if fib_levels is None:
+            return jsonify({
+                'error': 'Could not calculate Fibonacci levels'
+            }), 400, response_headers
+            
+        return jsonify({
+            'success': True,
+            'levels': fib_levels
+        }), 200, response_headers
+        
+    except Exception as e:
+        print(f"Error calculating Fibonacci levels: {str(e)}")
+        return jsonify({
+            'error': 'An error occurred while calculating Fibonacci levels'
+        }), 500, response_headers 

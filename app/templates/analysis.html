@@ -371,6 +371,9 @@
                             <button class="btn btn-sm btn-outline-primary" onclick="toggleChartType('line')">Line</button>
                             <button class="btn btn-sm btn-outline-primary" onclick="toggleChartType('candlestick')">Candlestick</button>
                             <button class="btn btn-sm btn-outline-primary" onclick="toggleIndicators()">Indicators</button>
+                            <button id="fibModeBtn" class="btn btn-sm btn-outline-success" onclick="toggleFibonacciMode()">
+                                <i class="fas fa-ruler me-1"></i>Fibonacci Mode
+                            </button>
                         </div>
                     </div>
                     <div class="card-body">
@@ -415,60 +418,75 @@
                 <!-- Fibonacci Levels Card -->
             <div class="col-md-4">
                 <div class="card mb-4">
-                    <div class="card-header">
-                            <h4 class="mb-0">Fibonacci Levels</h4>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">Fibonacci Levels</h4>
+                        <button class="btn btn-sm btn-outline-primary" onclick="clearFibonacciLevels()">
+                            <i class="fas fa-eraser me-1"></i>Clear
+                        </button>
                     </div>
                     <div class="card-body">
-                        {% if fib_levels %}
+                        <div class="alert alert-info mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>How to use:</strong>
+                            <ol class="mb-0 mt-2">
+                                <li>Click any point on the chart to select a starting point</li>
+                                <li>The system will automatically find the next high and calculate retracement levels</li>
+                                <li>Hover over lines to see exact prices</li>
+                                <li>Use the Clear button to reset</li>
+                            </ol>
+                        </div>
                         <ul class="list-group">
+                            {% if fib_levels %}
                             {% for level, value in fib_levels.items() %}
                             <li class="list-group-item d-flex justify-content-between align-items-center">
                                 {{ level }}
-                                    <span class="badge bg-primary rounded-pill">${{ "%.2f"|format(value) }}</span>
+                                <span class="badge bg-primary rounded-pill">${{ "%.2f"|format(value) }}</span>
+                            </li>
+                            {% endfor %}
+                            {% else %}
+                            <li class="list-group-item text-center text-muted">
+                                <i class="fas fa-mouse-pointer me-2"></i>
+                                Click on the chart to calculate Fibonacci levels
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Major Shareholders Card -->
+                <div class="card mb-4">
+                    <div class="card-header bg-dark text-white">
+                        <h4 class="mb-0">
+                            <i class="fas fa-users me-2"></i>Major Shareholders
+                        </h4>
+                    </div>
+                    <div class="card-body p-0">
+                        {% if fundamentals.get('major_holders') %}
+                        <ul class="list-group list-group-flush">
+                            {% for holder in fundamentals.get('major_holders', []) %}
+                            <li class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ holder.name }}</h6>
+                                        <span class="badge {% if holder.type == 'Insiders' %}bg-warning{% elif holder.type == 'Institutions' %}bg-info{% else %}bg-primary{% endif %} me-2">
+                                            {{ holder.type }}
+                                        </span>
+                                        {% if holder.shares != 'N/A' %}
+                                        <small class="text-muted">Shares: {{ holder.shares }}</small>
+                                        {% endif %}
+                                    </div>
+                                    <span class="badge bg-success fs-6">{{ holder.percentage }}</span>
+                                </div>
                             </li>
                             {% endfor %}
                         </ul>
                         {% else %}
-                        <p>No Fibonacci levels calculated</p>
-                        {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Major Shareholders Card -->
-                    <div class="card mb-4">
-                        <div class="card-header bg-dark text-white">
-                            <h4 class="mb-0">
-                                <i class="fas fa-users me-2"></i>Major Shareholders
-                            </h4>
-                        </div>
-                        <div class="card-body p-0">
-                            {% if fundamentals.get('major_holders') %}
-                            <ul class="list-group list-group-flush">
-                                {% for holder in fundamentals.get('major_holders', []) %}
-                                <li class="list-group-item">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div>
-                                            <h6 class="mb-1">{{ holder.name }}</h6>
-                                            <span class="badge {% if holder.type == 'Insiders' %}bg-warning{% elif holder.type == 'Institutions' %}bg-info{% else %}bg-primary{% endif %} me-2">
-                                                {{ holder.type }}
-                                            </span>
-                                            {% if holder.shares != 'N/A' %}
-                                            <small class="text-muted">Shares: {{ holder.shares }}</small>
-                                            {% endif %}
-                                        </div>
-                                        <span class="badge bg-success fs-6">{{ holder.percentage }}</span>
-                                    </div>
-                                </li>
-                                {% endfor %}
-                            </ul>
-                            {% else %}
-                            <div class="p-3">
-                                <div class="alert alert-info mb-0">
-                                    <i class="fas fa-info-circle me-2"></i>No major shareholders data available
-                                </div>
+                        <div class="p-3">
+                            <div class="alert alert-info mb-0">
+                                <i class="fas fa-info-circle me-2"></i>No major shareholders data available
                             </div>
-                            {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -656,6 +674,10 @@
     var currentChartType = 'line';
     var showIndicators = true;
 
+    // Add global variables for Fibonacci mode
+    var isFibonacciMode = false;
+    var clickHandler = null;
+
     function createCharts() {
         if (!stockData || stockData.length === 0) {
             document.getElementById('priceChart').innerHTML = 
@@ -757,30 +779,39 @@
             legend: {
                 x: 0,
                 y: 1,
-                orientation: 'h'
+                orientation: 'h',
+                bgcolor: 'rgba(255,255,255,0.9)',
+                bordercolor: '#E2E2E2',
+                borderwidth: 1
             },
             xaxis: {
                 title: 'Date',
                 rangeslider: {
-                    visible: false
+                    visible: true,
+                    thickness: 0.05
                 },
                 gridcolor: '#E5E5E5',
                 zerolinecolor: '#E5E5E5',
                 type: 'date',
                 tickformat: '%Y-%m-%d',
                 range: [
-                    dates[Math.max(0, dates.length - 365)],
+                    dates[Math.max(0, dates.length - 180)],  // Default to 6 months view
                     dates[dates.length - 1]
                 ],
                 rangeselector: {
+                    x: 0,
+                    y: 1.1,
                     buttons: [
+                        {count: 5, label: '5D', step: 'day', stepmode: 'backward'},
                         {count: 1, label: '1M', step: 'month', stepmode: 'backward'},
                         {count: 3, label: '3M', step: 'month', stepmode: 'backward'},
                         {count: 6, label: '6M', step: 'month', stepmode: 'backward'},
                         {count: 1, label: '1Y', step: 'year', stepmode: 'backward'},
-                        {count: 2, label: '2Y', step: 'year', stepmode: 'backward'},
                         {step: 'all', label: 'Max'}
-                    ]
+                    ],
+                    bgcolor: 'rgba(255,255,255,0.9)',
+                    bordercolor: '#E2E2E2',
+                    borderwidth: 1
                 }
             },
             yaxis: {
@@ -791,51 +822,133 @@
                 gridcolor: '#E5E5E5',
                 zerolinecolor: '#E5E5E5',
                 rangemode: 'normal',
+                fixedrange: false,
                 autorangeoptions: {
                     padding: 0.1,
                     minrange: 10
-                }
+                },
+                side: 'right'  // Move price axis to right side
             },
             yaxis2: {
                 title: 'Volume',
                 domain: [0, 0.2],
-                showticklabels: false,
+                showticklabels: true,
                 gridcolor: '#E5E5E5',
-                zerolinecolor: '#E5E5E5'
+                zerolinecolor: '#E5E5E5',
+                side: 'right'  // Move volume axis to right side
             },
             grid: {
                 rows: 2,
                 columns: 1,
                 pattern: 'independent'
             },
-            margin: { t: 20, b: 20 },
+            margin: { t: 50, b: 20, r: 60, l: 40 },
             hovermode: 'x unified',
             plot_bgcolor: '#FFFFFF',
-            paper_bgcolor: '#FFFFFF'
+            paper_bgcolor: '#FFFFFF',
+            modebar: {
+                bgcolor: 'rgba(255,255,255,0.9)',
+                color: '#2196F3',
+                activecolor: '#1976D2'
+            }
         };
 
         // Create the main chart with price and volume
         Plotly.newPlot('priceChart', [...traces, volumeTrace], layout, {
             responsive: true,
-            scrollZoom: true,
+            scrollZoom: {
+                enabled: true,
+                horizontalOnly: true  // Only allow horizontal scroll zoom
+            },
             modeBarButtonsToAdd: [
-                'drawline',
-                'drawopenpath',
-                'drawclosedpath',
-                'drawcircle',
-                'drawrect',
-                'eraseshape'
+                {
+                    name: 'Toggle Fibonacci Mode',
+                    icon: {
+                        width: 24,
+                        height: 24,
+                        path: 'M3,3 H21 V21 H3 V3 M9,15 L15,9 M9,9 L15,15',  // Custom icon
+                    },
+                    click: function(gd) {
+                        toggleFibonacciMode();
+                    }
+                },
+                {
+                    name: 'Clear Fibonacci',
+                    icon: Plotly.Icons.eraseshape,
+                    click: function(gd) {
+                        clearFibonacciLevels();
+                    }
+                }
+            ],
+            modeBarButtonsToRemove: [
+                'select2d',
+                'lasso2d',
+                'autoScale2d',
+                'resetScale2d'
             ],
             displaylogo: false,
-            doubleClick: 'reset',
-            modeBarButtonsToRemove: ['autoScale2d', 'resetScale2d'],
-            showTips: true
+            doubleClick: false,  // Disable double-click zoom
+            showTips: true,
+            toImageButtonOptions: {
+                format: 'png',
+                filename: `${tickerSymbol}_chart`,
+                height: 800,
+                width: 1200,
+                scale: 2
+            }
         });
 
-        // Add event listeners for legend clicks
+        // Add double-click handler for reset
         var chart = document.getElementById('priceChart');
-        chart.on('plotly_legendclick', function(data) {
-            return false; // Prevents toggling trace visibility on legend click
+        chart.on('plotly_doubleclick', function() {
+            Plotly.relayout(chart, {
+                'xaxis.range': [
+                    dates[Math.max(0, dates.length - 180)],
+                    dates[dates.length - 1]
+                ],
+                'yaxis.autorange': true,
+                'yaxis2.autorange': true
+            });
+        });
+
+        // Improve hover info
+        chart.on('plotly_hover', function(data) {
+            var point = data.points[0];
+            if (point.data.type === 'candlestick') {
+                var hoverInfo = document.createElement('div');
+                hoverInfo.className = 'plotly-hover-info';
+                hoverInfo.style.cssText = `
+                    position: fixed;
+                    background: rgba(0,0,0,0.8);
+                    color: white;
+                    padding: 10px;
+                    border-radius: 5px;
+                    font-size: 12px;
+                    z-index: 1000;
+                    pointer-events: none;
+                `;
+                hoverInfo.innerHTML = `
+                    <div><strong>Date:</strong> ${new Date(point.x).toLocaleDateString()}</div>
+                    <div><strong>Open:</strong> $${point.open.toFixed(2)}</div>
+                    <div><strong>High:</strong> $${point.high.toFixed(2)}</div>
+                    <div><strong>Low:</strong> $${point.low.toFixed(2)}</div>
+                    <div><strong>Close:</strong> $${point.close.toFixed(2)}</div>
+                    <div><strong>Volume:</strong> ${point.customdata ? point.customdata.toLocaleString() : 'N/A'}</div>
+                `;
+                document.body.appendChild(hoverInfo);
+                
+                // Position the hover info near the cursor
+                var event = data.event;
+                hoverInfo.style.left = (event.pageX + 10) + 'px';
+                hoverInfo.style.top = (event.pageY + 10) + 'px';
+            }
+        });
+
+        chart.on('plotly_unhover', function() {
+            var hoverInfo = document.querySelector('.plotly-hover-info');
+            if (hoverInfo) {
+                hoverInfo.remove();
+            }
         });
     }
 
@@ -851,11 +964,342 @@
         createCharts();
     };
 
-    // Initialize charts when DOM is loaded
-    document.addEventListener('DOMContentLoaded', function() {
-        createCharts();
-        console.log("Chart initialized");
-    });
+    // Function to toggle Fibonacci mode
+    window.toggleFibonacciMode = function() {
+        const chart = document.getElementById('priceChart');
+        const fibModeBtn = document.getElementById('fibModeBtn');
+        isFibonacciMode = !isFibonacciMode;
+
+        if (isFibonacciMode) {
+            // Enable Fibonacci mode
+            fibModeBtn.classList.remove('btn-outline-success');
+            fibModeBtn.classList.add('btn-success');
+            clickHandler = chart.on('plotly_click', handlePointSelection);
+            
+            // Show instruction tooltip
+            const tooltip = document.createElement('div');
+            tooltip.className = 'alert alert-info alert-dismissible fade show position-fixed bottom-0 end-0 m-3';
+            tooltip.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>
+                Click any point on the chart to start calculating Fibonacci levels
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(tooltip);
+            setTimeout(() => tooltip.remove(), 3000);
+
+            // Update cursor style
+            Plotly.relayout(chart, {
+                dragmode: false,
+                hovermode: 'closest'
+            });
+            chart.style.cursor = 'crosshair';
+        } else {
+            // Disable Fibonacci mode
+            fibModeBtn.classList.remove('btn-success');
+            fibModeBtn.classList.add('btn-outline-success');
+            if (clickHandler) {
+                chart.removeListener('plotly_click', clickHandler);
+            }
+
+            // Restore default cursor and chart interactions
+            Plotly.relayout(chart, {
+                dragmode: 'zoom',
+                hovermode: 'x unified'
+            });
+            chart.style.cursor = 'auto';
+        }
+    };
+
+    // Function to clear Fibonacci levels
+    window.clearFibonacciLevels = function() {
+        const chart = document.getElementById('priceChart');
+        const data = chart.data;
+        const updatedData = data.filter(trace => !trace.name.startsWith('Fib') && trace.name !== 'Selected Point' && trace.name !== 'Selected Point Range');
+        Plotly.react(chart, updatedData, chart.layout);
+        
+        // Reset Fibonacci levels display
+        document.querySelector('.card-body ul.list-group').innerHTML = `
+            <li class="list-group-item text-center text-muted">
+                <i class="fas fa-info-circle me-2"></i>
+                Enable Fibonacci Mode and click on the chart to calculate levels
+            </li>
+        `;
+
+        // Disable Fibonacci mode
+        if (isFibonacciMode) {
+            toggleFibonacciMode();
+        }
+    };
+
+    // Function to handle point selection for Fibonacci levels
+    function handlePointSelection(eventData) {
+        if (eventData.points && eventData.points.length > 0) {
+            const point = eventData.points[0];
+            const selectedDate = point.x;
+            const selectedPrice = point.y;
+
+            // Show immediate feedback for selected point
+            const chart = document.getElementById('priceChart');
+            const data = chart.data;
+            
+            // Remove existing temporary point marker if any
+            const updatedData = data.filter(trace => !trace.name.startsWith('Selected Point'));
+            
+            // Add new point marker
+            updatedData.push({
+                x: [selectedDate],
+                y: [selectedPrice],
+                mode: 'markers+text',
+                type: 'scatter',
+                name: 'Selected Point',
+                text: ['Selected'],
+                textposition: 'top',
+                marker: {
+                    size: 10,
+                    color: '#4CAF50',
+                    symbol: 'circle'
+                },
+                showlegend: false
+            });
+
+            // Update chart with the new point marker
+            Plotly.react(chart, updatedData, chart.layout);
+
+            // Show loading state in Fibonacci card with the selected point info
+            document.querySelector('.card-body ul.list-group').innerHTML = `
+                <li class="list-group-item">
+                    <div class="alert alert-success mb-3">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-crosshairs me-2"></i>
+                            <div>
+                                <strong>Selected Point</strong><br>
+                                Date: ${new Date(selectedDate).toLocaleDateString()}<br>
+                                Price: $${selectedPrice.toFixed(2)}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div class="mt-2">Calculating Fibonacci levels...</div>
+                    </div>
+                </li>
+            `;
+
+            // Call API to calculate Fibonacci levels
+            fetch('/api/fibonacci-from-point', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                mode: 'cors',
+                credentials: 'same-origin',
+                body: JSON.stringify({
+                    ticker: tickerSymbol,
+                    selected_date: selectedDate
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update Fibonacci levels display
+                    updateFibonacciLevels(data.levels);
+                    
+                    // Add Fibonacci level lines to the chart
+                    addFibonacciLines(data.levels, selectedDate);
+
+                    // Show tooltip with instructions
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'alert alert-info alert-dismissible fade show position-fixed bottom-0 end-0 m-3';
+                    tooltip.innerHTML = `
+                        <i class="fas fa-info-circle me-2"></i>
+                        Click another point to recalculate levels, or use Clear to reset.
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    `;
+                    document.body.appendChild(tooltip);
+                    setTimeout(() => tooltip.remove(), 3000);
+                } else {
+                    document.querySelector('.card-body ul.list-group').innerHTML = `
+                        <li class="list-group-item">
+                            <div class="alert alert-danger mb-0">
+                                <i class="fas fa-exclamation-circle me-2"></i>
+                                ${data.error || 'Error calculating Fibonacci levels'}
+                            </div>
+                        </li>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                document.querySelector('.card-body ul.list-group').innerHTML = `
+                    <li class="list-group-item">
+                        <div class="alert alert-danger mb-0">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            Error calculating Fibonacci levels
+                        </div>
+                    </li>
+                `;
+            });
+        }
+    }
+
+    // Function to update Fibonacci levels display
+    function updateFibonacciLevels(levels) {
+        const fibList = document.querySelector('.card-body ul.list-group');
+        fibList.innerHTML = '';
+
+        // Add selected point date
+        if (levels['Selected Date']) {
+            fibList.innerHTML += `
+                <li class="list-group-item d-flex justify-content-between align-items-center bg-light">
+                    <strong>Selected Date</strong>
+                    <span>${levels['Selected Date']}</span>
+                </li>
+            `;
+        }
+
+        // Add max price date
+        if (levels['Max Price Date']) {
+            fibList.innerHTML += `
+                <li class="list-group-item d-flex justify-content-between align-items-center bg-light">
+                    <strong>Max Price Date</strong>
+                    <span>${levels['Max Price Date']}</span>
+                </li>
+            `;
+        }
+
+        // Add price levels
+        const levelOrder = [
+            'Current',
+            '0.0 (Selected Point)',
+            '23.6%',
+            '38.2%',
+            '50.0%',
+            '61.8%',
+            '78.6%',
+            '100.0 (High)'
+        ];
+
+        levelOrder.forEach(level => {
+            if (level in levels && !['Selected Date', 'Max Price Date'].includes(level)) {
+                const value = levels[level];
+                fibList.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        ${level}
+                        <span class="badge bg-primary rounded-pill">$${value.toFixed(2)}</span>
+                    </li>
+                `;
+            }
+        });
+    }
+
+    // Function to add Fibonacci lines to the chart
+    function addFibonacciLines(levels, selectedDate) {
+        const chart = document.getElementById('priceChart');
+        const data = chart.data;
+        
+        // Keep non-Fibonacci traces
+        const updatedData = data.filter(trace => 
+            !trace.name.startsWith('Fib') && trace.name !== 'Selected Point Range');
+        
+        // Get the date range
+        const startDate = selectedDate;
+        const endDate = levels['Max Price Date'];
+        
+        // Add vertical range for selected period
+        updatedData.push({
+            x: [startDate, startDate, endDate, endDate, startDate],
+            y: [Math.min(...data[0].y), Math.max(...data[0].y), 
+                Math.max(...data[0].y), Math.min(...data[0].y), 
+                Math.min(...data[0].y)],
+            fill: 'toself',
+            fillcolor: 'rgba(76, 175, 80, 0.1)',
+            line: { width: 0 },
+            name: 'Selected Point Range',
+            showlegend: false,
+            hoverinfo: 'skip'
+        });
+
+        // Add Fibonacci lines with improved visuals
+        const fibColors = {
+            '0.0': '#4CAF50',   // Green
+            '23.6': '#2196F3',  // Blue
+            '38.2': '#9C27B0',  // Purple
+            '50.0': '#FF9800',  // Orange
+            '61.8': '#F44336',  // Red
+            '78.6': '#795548',  // Brown
+            '100.0': '#607D8B'  // Blue Grey
+        };
+
+        // Sort levels by price for proper layering
+        const sortedLevels = Object.entries(levels)
+            .filter(([level]) => !['Selected Date', 'Max Price Date', 'Current'].includes(level))
+            .sort((a, b) => b[1] - a[1]);  // Sort by price descending
+
+        sortedLevels.forEach(([level, price]) => {
+            const levelNum = level.split('%')[0];
+            if (levelNum in fibColors) {
+                updatedData.push({
+                    x: [startDate, endDate],
+                    y: [price, price],
+                    mode: 'lines+text',
+                    name: `Fib ${level}`,
+                    text: [`${level} ($${price.toFixed(2)})`],
+                    textposition: 'middle left',
+                    textfont: {
+                        color: fibColors[levelNum],
+                        size: 12,
+                        family: 'Arial, sans-serif'
+                    },
+                    line: {
+                        color: fibColors[levelNum],
+                        width: 2,
+                        dash: 'dot'
+                    },
+                    hovertemplate: `
+                        <b>Fibonacci ${level}</b><br>
+                        Price: $%{y:.2f}<br>
+                        <extra></extra>
+                    `,
+                    hoverlabel: {
+                        bgcolor: fibColors[levelNum],
+                        font: { color: 'white' }
+                    }
+                });
+            }
+        });
+
+        // Update the chart with new layout options
+        const newLayout = {
+            ...chart.layout,
+            showlegend: true,
+            legend: {
+                x: 0,
+                y: 1,
+                orientation: 'h',
+                bgcolor: 'rgba(255,255,255,0.9)',
+                bordercolor: '#E2E2E2',
+                borderwidth: 1,
+                font: { size: 11 }
+            }
+        };
+
+        // Ensure proper z-index ordering
+        updatedData.sort((a, b) => {
+            if (a.name === 'Selected Point Range') return -1;
+            if (b.name === 'Selected Point Range') return 1;
+            if (a.name.startsWith('Fib') && !b.name.startsWith('Fib')) return 1;
+            if (!a.name.startsWith('Fib') && b.name.startsWith('Fib')) return -1;
+            return 0;
+        });
+
+        Plotly.react(chart, updatedData, newLayout);
+    }
+
+    // Create initial charts
+    createCharts();
 })();
 
 // Initialize tooltips

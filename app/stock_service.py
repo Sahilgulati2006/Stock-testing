@@ -226,6 +226,53 @@ class StockService:
         except Exception as e:
             print(f"Error calculating Fibonacci levels: {e}")
             return None
+            
+    @staticmethod
+    def calculate_fibonacci_from_point(data, selected_date):
+        """Calculate Fibonacci retracement levels from a selected point to the subsequent high"""
+        if data is None or data.empty:
+            return None
+            
+        try:
+            # Convert selected_date to datetime if it's a string
+            if isinstance(selected_date, str):
+                selected_date = pd.to_datetime(selected_date)
+                
+            # Get data from selected point onwards
+            mask = data.index >= selected_date
+            future_data = data[mask]
+            
+            if future_data.empty:
+                return None
+                
+            # Get the selected point's price and the maximum price after it
+            selected_price = float(future_data['Close'].iloc[0])
+            max_price = float(future_data['High'].max())
+            current_price = float(future_data['Close'].iloc[-1])
+            
+            # Calculate the price difference
+            diff = max_price - selected_price
+            
+            # Calculate Fibonacci levels
+            levels = {
+                'Current': current_price,
+                '0.0 (Selected Point)': selected_price,
+                '23.6%': selected_price + (0.236 * diff),
+                '38.2%': selected_price + (0.382 * diff),
+                '50.0%': selected_price + (0.5 * diff),
+                '61.8%': selected_price + (0.618 * diff),
+                '78.6%': selected_price + (0.786 * diff),
+                '100.0 (High)': max_price,
+                'Selected Date': selected_date.strftime('%Y-%m-%d'),
+                'Max Price Date': future_data[future_data['High'] == max_price].index[0].strftime('%Y-%m-%d')
+            }
+            
+            return {k: round(float(v), 2) if k not in ['Selected Date', 'Max Price Date'] else v 
+                   for k, v in levels.items()}
+                   
+        except Exception as e:
+            print(f"Error calculating Fibonacci levels from point: {e}")
+            return None
     
     @staticmethod
     def get_stock_news(ticker, limit=5):
