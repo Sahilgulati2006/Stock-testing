@@ -229,6 +229,301 @@
         content: '';
         margin-right: 0;
     }
+
+    /* Warren Buffett Chat Styles */
+    .warren-chat-button {
+        position: fixed;
+        bottom: 30px;
+        right: 30px;
+        width: 70px;
+        height: 70px;
+        border-radius: 50%;
+        background: linear-gradient(45deg, #B8860B, #DAA520);
+        border: none;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        cursor: pointer;
+        z-index: 1000;
+        transition: transform 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .warren-chat-button:hover {
+        transform: scale(1.1);
+    }
+
+    .warren-chat-button img {
+        width: 45px;
+        height: 45px;
+        border-radius: 50%;
+    }
+
+    .warren-chat-modal .modal-content {
+        background: linear-gradient(to bottom, #1a1a1a, #2c2c2c);
+        color: #fff;
+        border: 1px solid #DAA520;
+        height: 85vh;
+        display: flex;
+        flex-direction: column;
+        max-height: 800px;
+    }
+
+    .warren-chat-modal .modal-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+        overflow: hidden;
+        position: relative;
+    }
+
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1.5rem;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        max-height: calc(85vh - 180px);
+    }
+
+    .chat-message {
+        margin-bottom: 1.5rem;
+        opacity: 0;
+        transform: translateY(20px);
+        animation: messageAppear 0.3s ease forwards;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+    }
+
+    @keyframes messageAppear {
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .chat-message.warren {
+        display: flex;
+        align-items: start;
+        gap: 1rem;
+    }
+
+    .chat-message.user {
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: start;
+        gap: 1rem;
+    }
+
+    .chat-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .chat-bubble {
+        max-width: 75%;
+        padding: 1rem;
+        border-radius: 1rem;
+        position: relative;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+        hyphens: auto;
+    }
+
+    .chat-message.warren .chat-bubble {
+        background: rgba(218,165,32,0.1);
+        border: 1px solid rgba(218,165,32,0.3);
+        border-top-left-radius: 0;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .chat-message.user .chat-bubble {
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(255,255,255,0.2);
+        border-top-right-radius: 0;
+        font-size: 0.95rem;
+        line-height: 1.5;
+    }
+
+    .chat-input-container {
+        padding: 1rem;
+        background: rgba(0,0,0,0.2);
+        border-top: 1px solid rgba(218,165,32,0.3);
+        position: sticky;
+        bottom: 0;
+        width: 100%;
+        z-index: 1;
+    }
+
+    .chat-input-form {
+        display: flex;
+        gap: 1rem;
+    }
+
+    .chat-input {
+        flex: 1;
+        background: rgba(255,255,255,0.1);
+        border: 1px solid rgba(218,165,32,0.3);
+        border-radius: 2rem;
+        padding: 0.75rem 1.5rem;
+        color: #fff;
+        font-size: 1rem;
+    }
+
+    .chat-input:focus {
+        outline: none;
+        border-color: #DAA520;
+        background: rgba(255,255,255,0.15);
+    }
+
+    .chat-submit {
+        background: #DAA520;
+        color: #000;
+        border: none;
+        border-radius: 2rem;
+        padding: 0.75rem 1.5rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .chat-submit:hover {
+        background: #B8860B;
+        transform: translateY(-1px);
+    }
+
+    .chat-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.5rem;
+        margin-top: 1rem;
+    }
+
+    .chat-metric {
+        background: rgba(255,255,255,0.1);
+        padding: 0.75rem;
+        border-radius: 0.5rem;
+        text-align: center;
+        font-size: 0.9rem;
+    }
+
+    .chat-quote {
+        font-style: italic;
+        color: #DAA520;
+        margin-top: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .warren-metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin: 1rem 0;
+    }
+
+    .metric-item {
+        background: rgba(255,255,255,0.1);
+        padding: 1rem;
+        border-radius: 8px;
+        text-align: center;
+    }
+
+    .metric-item h6 {
+        color: #DAA520;
+        margin-bottom: 0.5rem;
+    }
+
+    .warren-analysis {
+        margin: 1.5rem 0;
+    }
+
+    .warren-analysis p {
+        margin-bottom: 0.75rem;
+        line-height: 1.6;
+    }
+
+    .warren-quote {
+        background: rgba(218,165,32,0.1);
+        border-left: 4px solid #DAA520;
+        padding: 1rem;
+        margin: 1rem 0;
+        font-style: italic;
+        color: #DAA520;
+    }
+
+    .warren-actions {
+        display: flex;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .warren-actions button {
+        flex: 1;
+        padding: 0.75rem;
+        border: none;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+
+    .btn-analyze {
+        background: #DAA520;
+        color: #000;
+    }
+
+    .btn-analyze:hover {
+        background: #B8860B;
+    }
+
+    .btn-portfolio {
+        background: rgba(218,165,32,0.2);
+        color: #DAA520;
+        border: 1px solid #DAA520;
+    }
+
+    .btn-portfolio:hover {
+        background: rgba(218,165,32,0.3);
+    }
+
+    .chat-follow-up {
+        margin-top: 1rem;
+        font-size: 0.9rem;
+        color: #DAA520;
+    }
+
+    .chat-topics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-top: 0.5rem;
+        max-width: 100%;
+    }
+
+    .chat-topic-btn {
+        background: rgba(218,165,32,0.1);
+        border: 1px solid rgba(218,165,32,0.3);
+        color: #DAA520;
+        padding: 0.5rem 1rem;
+        border-radius: 1rem;
+        font-size: 0.8rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chat-topic-btn:hover {
+        background: rgba(218,165,32,0.2);
+        transform: translateY(-1px);
+    }
 </style>
 {% endblock %}
 
@@ -421,6 +716,11 @@
             </div>
         </div>
     </div>
+
+    <!-- Add Warren Buffett Chat Button -->
+    <button class="warren-chat-button" data-bs-toggle="modal" data-bs-target="#warrenBuffettModal" title="Talk to Warren">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Warren_Buffett_KU_Visit.jpg" alt="Warren Buffett">
+    </button>
     {% else %}
     <div class="empty-state">
         <h4>No positions in portfolio</h4>
@@ -478,6 +778,38 @@
             <div class="modal-body">
                 <div id="eventDetailsContent">
                     <!-- Event details will be populated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Warren Buffett Modal -->
+<div class="modal fade warren-chat-modal" id="warrenBuffettModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Warren_Buffett_KU_Visit.jpg" alt="Warren Buffett" class="chat-avatar">
+                    Chat with Warren Buffett
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="chat-messages" id="chatMessages">
+                    <!-- Welcome message -->
+                    <div class="chat-message warren">
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Warren_Buffett_KU_Visit.jpg" alt="Warren Buffett" class="chat-avatar">
+                        <div class="chat-bubble">
+                            <p>Hello! I'm Warren Buffett's AI assistant. I'm here to share investment wisdom and help you make better investment decisions. What would you like to know?</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="chat-input-container">
+                    <form class="chat-input-form" id="chatForm" onsubmit="return sendMessage(event)">
+                        <input type="text" class="chat-input" id="messageInput" placeholder="Ask Warren anything about investing..." autocomplete="off">
+                        <button type="submit" class="chat-submit">Send</button>
+                    </form>
                 </div>
             </div>
         </div>
@@ -1083,6 +1415,274 @@ document.addEventListener('DOMContentLoaded', function() {
     setInterval(refreshMarketSentiment, 5 * 60 * 1000);
     
     // Rest of the initialization code...
+});
+
+// Warren Buffett AI Functions
+async function analyzeStock() {
+    const ticker = prompt("Which stock would you like me to analyze?");
+    if (!ticker) return;
+    
+    const contentDiv = document.getElementById('warrenAnalysis');
+    contentDiv.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-warning" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Let me take a look at ${ticker.toUpperCase()}...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('/api/warren-buffett/analyze-stock', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ticker: ticker.toUpperCase() })
+        });
+        
+        const data = await response.json();
+        
+        let html = `<h5 class="mb-4">Analysis of ${ticker.toUpperCase()}</h5>`;
+        
+        // Add metrics if available
+        if (Object.keys(data.metrics).length > 0) {
+            html += '<div class="warren-metrics">';
+            for (const [key, value] of Object.entries(data.metrics)) {
+                html += `
+                    <div class="metric-item">
+                        <h6>${key}</h6>
+                        <div>${value}</div>
+                    </div>
+                `;
+            }
+            html += '</div>';
+        }
+        
+        // Add analysis points
+        html += '<div class="warren-analysis">';
+        data.analysis.forEach(point => {
+            html += `<p>${point}</p>`;
+        });
+        html += '</div>';
+        
+        // Add quote
+        if (data.quote) {
+            html += `<div class="warren-quote">"${data.quote}"</div>`;
+        }
+        
+        contentDiv.innerHTML = html;
+        
+    } catch (error) {
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                I always say you should invest in what you understand. 
+                Right now, I'm having trouble understanding this situation.
+            </div>
+        `;
+    }
+}
+
+async function getPortfolioAdvice() {
+    const contentDiv = document.getElementById('warrenAnalysis');
+    contentDiv.innerHTML = `
+        <div class="text-center">
+            <div class="spinner-border text-warning" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Let me take a look at your portfolio...</p>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('/api/warren-buffett/portfolio-advice');
+        const data = await response.json();
+        
+        let html = '<h5 class="mb-4">Portfolio Analysis</h5>';
+        
+        // Add advice points
+        html += '<div class="warren-analysis">';
+        data.advice.forEach(point => {
+            html += `<p>${point}</p>`;
+        });
+        html += '</div>';
+        
+        // Add wisdom quote
+        if (data.wisdom_quote) {
+            html += `<div class="warren-quote">"${data.wisdom_quote}"</div>`;
+        }
+        
+        contentDiv.innerHTML = html;
+        
+    } catch (error) {
+        contentDiv.innerHTML = `
+            <div class="alert alert-danger">
+                The most important thing in investing is to know what you're doing. 
+                If you're unsure, consider index funds.
+            </div>
+        `;
+    }
+}
+
+// Add Warren Buffett Chat Functions
+async function sendMessage(event) {
+    event.preventDefault();
+    
+    const input = document.getElementById('messageInput');
+    const message = input.value.trim();
+    if (!message) return;
+    
+    // Clear input
+    input.value = '';
+    
+    // Add user message to chat
+    addMessage('user', message);
+    
+    // Show typing indicator
+    addTypingIndicator();
+    
+    try {
+        const response = await fetch('/api/warren-buffett/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ message })
+        });
+        
+        const data = await response.json();
+        
+        // Remove typing indicator
+        removeTypingIndicator();
+        
+        // Add Warren's response
+        let responseHtml = `<p>${data.response}</p>`;
+        
+        // Add metrics if available
+        if (data.metrics) {
+            responseHtml += '<div class="chat-metrics">';
+            for (const [key, value] of Object.entries(data.metrics)) {
+                responseHtml += `
+                    <div class="chat-metric">
+                        <strong>${key}:</strong>
+                        <div>${value}</div>
+                    </div>
+                `;
+            }
+            responseHtml += '</div>';
+        }
+        
+        // Add quote if available
+        if (data.quote) {
+            responseHtml += `<div class="chat-quote">"${data.quote}"</div>`;
+        }
+        
+        // Add follow-up suggestion and related topics
+        if (data.follow_up) {
+            responseHtml += `
+                <div class="chat-follow-up">
+                    ${data.follow_up}
+                    ${data.related_topics ? `
+                        <div class="chat-topics">
+                            ${data.related_topics.map(topic => `
+                                <button class="chat-topic-btn" onclick="sendMessage({ preventDefault: () => {}, target: { value: '${topic}' } })">
+                                    ${topic}
+                                </button>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        addMessage('warren', responseHtml);
+        
+    } catch (error) {
+        removeTypingIndicator();
+        addMessage('warren', 'I apologize, but I seem to be having trouble processing that request. Could you try again?');
+    }
+}
+
+function addMessage(sender, content) {
+    const messagesDiv = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${sender}`;
+    
+    if (sender === 'warren') {
+        messageDiv.innerHTML = `
+            <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Warren_Buffett_KU_Visit.jpg" alt="Warren Buffett" class="chat-avatar">
+            <div class="chat-bubble">${content}</div>
+        `;
+    } else {
+        messageDiv.innerHTML = `
+            <div class="chat-bubble">${content}</div>
+            <div class="chat-avatar" style="background: #DAA520; display: flex; align-items: center; justify-content: center;">
+                <span style="color: #000; font-weight: bold;">You</span>
+            </div>
+        `;
+    }
+    
+    messagesDiv.appendChild(messageDiv);
+    
+    // Smooth scroll to the new message
+    requestAnimationFrame(() => {
+        messageDiv.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+}
+
+function addTypingIndicator() {
+    const messagesDiv = document.getElementById('chatMessages');
+    const typingDiv = document.createElement('div');
+    typingDiv.className = 'chat-message warren typing-indicator';
+    typingDiv.innerHTML = `
+        <img src="https://upload.wikimedia.org/wikipedia/commons/5/51/Warren_Buffett_KU_Visit.jpg" alt="Warren Buffett" class="chat-avatar">
+        <div class="chat-bubble">
+            <div class="typing-animation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+    `;
+    messagesDiv.appendChild(typingDiv);
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+
+function removeTypingIndicator() {
+    const typingIndicator = document.querySelector('.typing-indicator');
+    if (typingIndicator) {
+        typingIndicator.remove();
+    }
+}
+
+// Add resize handler for chat modal
+document.addEventListener('DOMContentLoaded', function() {
+    const modal = document.querySelector('.warren-chat-modal');
+    if (modal) {
+        const resizeChat = () => {
+            const windowHeight = window.innerHeight;
+            const modalContent = modal.querySelector('.modal-content');
+            const maxHeight = Math.min(windowHeight * 0.85, 800);
+            modalContent.style.height = `${maxHeight}px`;
+            
+            const modalBody = modal.querySelector('.modal-body');
+            const modalHeader = modal.querySelector('.modal-header');
+            const inputContainer = modal.querySelector('.chat-input-container');
+            const messagesDiv = modal.querySelector('.chat-messages');
+            
+            if (modalBody && modalHeader && inputContainer && messagesDiv) {
+                const availableHeight = maxHeight - modalHeader.offsetHeight;
+                modalBody.style.height = `${availableHeight}px`;
+                messagesDiv.style.maxHeight = `${availableHeight - inputContainer.offsetHeight}px`;
+            }
+        };
+        
+        // Resize on modal show
+        modal.addEventListener('shown.bs.modal', resizeChat);
+        
+        // Resize on window resize
+        window.addEventListener('resize', resizeChat);
+    }
 });
 </script>
 {% endblock %} 

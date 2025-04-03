@@ -7,6 +7,7 @@ from app.stock_service import StockService
 from app.portfolio_service import PortfolioService
 from app.storage_service import StorageService
 from app.market_sentiment_service import MarketSentimentService
+from app.warren_buffett_ai import WarrenBuffettAI
 from functools import lru_cache
 from app.web_search import web_search
 
@@ -15,6 +16,7 @@ portfolio_service = PortfolioService()
 stock_service = StockService()
 storage_service = StorageService()
 market_sentiment_service = MarketSentimentService()
+warren_ai = WarrenBuffettAI()
 
 # Cache sentiment results for 1 hour to avoid repeated Reddit API calls
 @lru_cache(maxsize=100)
@@ -647,4 +649,64 @@ def get_market_sentiment():
                 'momentum': 50,
                 'volume': 50
             }
+        }), 500 
+
+@main.route('/api/warren-buffett/analyze-stock', methods=['POST'])
+def analyze_stock():
+    """Get Warren Buffett's analysis of a specific stock"""
+    try:
+        data = request.get_json()
+        ticker = data.get('ticker')
+        if not ticker:
+            return jsonify({'error': 'No ticker provided'}), 400
+            
+        analysis = warren_ai.analyze_stock(ticker)
+        return jsonify(analysis)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'analysis': ["I always say you should invest in what you understand. Right now, I'm having trouble understanding this situation."],
+            'quote': "Risk comes from not knowing what you're doing."
+        }), 500
+
+@main.route('/api/warren-buffett/portfolio-advice')
+def get_portfolio_advice():
+    """Get Warren Buffett's advice on your portfolio"""
+    try:
+        portfolio_data = portfolio_service.get_portfolio_data()
+        advice = warren_ai.get_advice(portfolio_data)
+        return jsonify(advice)
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'advice': ["The most important thing in investing is to know what you're doing. If you're unsure, consider index funds."],
+            'wisdom_quote': "Risk comes from not knowing what you're doing."
+        }), 500 
+
+@main.route('/api/warren-buffett/chat', methods=['POST'])
+def chat_with_warren():
+    """Chat with Warren Buffett AI"""
+    try:
+        data = request.get_json()
+        message = data.get('message')
+        if not message:
+            return jsonify({'error': 'No message provided'}), 400
+            
+        # Get portfolio data for context if available
+        try:
+            portfolio_data = portfolio_service.get_portfolio_data()
+        except:
+            portfolio_data = None
+            
+        context = {'portfolio_data': portfolio_data} if portfolio_data else {}
+        
+        # Get response from Warren AI
+        response = warren_ai.get_conversation_response(message, context)
+        return jsonify(response)
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'response': "Even the best investors face uncertainty sometimes. Could you rephrase your question?",
+            'type': 'error'
         }), 500 
