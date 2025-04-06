@@ -36,20 +36,20 @@
         position: absolute;
         width: 100%;
         transform: translateY(20px);
-        transition: all 0.5s ease-in-out;
+        transition: opacity 0.8s ease-in-out, transform 0.8s ease-in-out;
         font-style: italic;
         font-weight: 300;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         padding: 0 2rem;
         letter-spacing: 0.5px;
         pointer-events: none;
-        visibility: hidden;
+        display: none;
     }
     
     .quote-text.active {
         opacity: 1;
         transform: translateY(0);
-        visibility: visible;
+        display: block;
     }
     
     .empty-state {
@@ -647,13 +647,13 @@
 <div class="portfolio-container">
     <!-- Quote Banner -->
     <div class="quote-banner">
-        <div class="quote-text active">I can do this all day... but the market closes at 4 PM.</div>
-        <div class="quote-text">With great capital comes great responsibility!</div>
-        <div class="quote-text">Introduce a little volatility... upset the market order, and everything becomes chaos!</div>
-        <div class="quote-text">Sometimes you gotta run before you can walk... but in the stock market, it's better to walk before you run.</div>
-        <div class="quote-text">The gains are yours, chico... and everything in between!</div>
-        <div class="quote-text">I find your lack of portfolio diversification... disturbing.</div>
-        <div class="quote-text">The market... uh... finds a way.</div>
+        <div class="quote-text active">"The best investment you can make is in yourself. Knowledge and wisdom compound over time."</div>
+        <div class="quote-text">"The market is a device for transferring money from the impatient to the patient."</div>
+        <div class="quote-text">"Risk comes from not knowing what you're doing. Success comes from knowing your circle of competence."</div>
+        <div class="quote-text">"Price is what you pay, value is what you get. The market offers both opportunities and lessons."</div>
+        <div class="quote-text">"Time in the market beats timing the market. Consistency is the key to long-term wealth."</div>
+        <div class="quote-text">"The four most dangerous words in investing are: 'This time it's different.'"</div>
+        <div class="quote-text">"Be fearful when others are greedy, and greedy when others are fearful."</div>
     </div>
 
     <!-- Market Indices Section -->
@@ -664,7 +664,7 @@
                 <div class="index-name">
                     <i class="fas fa-chart-line"></i>
                     S&P 500
-                    <span class="index-symbol">SPY</span>
+                    <span class="index-symbol" data-symbol="SPY">SPY</span>
                 </div>
                 <div class="index-price">Loading...</div>
                 <div class="index-change">
@@ -696,7 +696,7 @@
                 <div class="index-name">
                     <i class="fas fa-microchip"></i>
                     NASDAQ 100
-                    <span class="index-symbol">QQQ</span>
+                    <span class="index-symbol" data-symbol="QQQ">QQQ</span>
                 </div>
                 <div class="index-price">Loading...</div>
                 <div class="index-change">
@@ -728,7 +728,7 @@
                 <div class="index-name">
                     <i class="fas fa-building"></i>
                     Dow Jones
-                    <span class="index-symbol">DIA</span>
+                    <span class="index-symbol" data-symbol="DIA">DIA</span>
                 </div>
                 <div class="index-price">Loading...</div>
                 <div class="index-change">
@@ -760,7 +760,7 @@
                 <div class="index-name">
                     <i class="fas fa-chart-bar"></i>
                     Russell 2000
-                    <span class="index-symbol">IWM</span>
+                    <span class="index-symbol" data-symbol="IWM">IWM</span>
                 </div>
                 <div class="index-price">Loading...</div>
                 <div class="index-change">
@@ -1075,49 +1075,43 @@ let allocationChart = null;
 // Quote rotation functionality
 function rotateQuotes() {
     const quotes = Array.from(document.querySelectorAll('.quote-text'));
-    let previousIndex = -1;
+    let currentIndex = 0;
+    let isTransitioning = false;
     
-    function getRandomIndex(max) {
-        let newIndex;
-        do {
-            newIndex = Math.floor(Math.random() * max);
-        } while (newIndex === previousIndex && max > 1);
-        previousIndex = newIndex;
-        return newIndex;
+    function showQuote(index) {
+        if (isTransitioning) return;
+        isTransitioning = true;
+        
+        // Hide current quote
+        const currentQuote = quotes.find(q => q.classList.contains('active'));
+        if (currentQuote) {
+            currentQuote.classList.remove('active');
+            setTimeout(() => {
+                currentQuote.style.display = 'none';
+            }, 800); // Match transition duration
+        }
+        
+        // Show new quote
+        const nextQuote = quotes[index];
+        nextQuote.style.display = 'block';
+        
+        // Trigger reflow
+        void nextQuote.offsetWidth;
+        
+        setTimeout(() => {
+            nextQuote.classList.add('active');
+            isTransitioning = false;
+        }, 50);
     }
     
-    // Hide all quotes initially
-    quotes.forEach(quote => {
-        quote.style.visibility = 'hidden';
-        quote.classList.remove('active');
-    });
+    // Show initial quote
+    showQuote(currentIndex);
     
-    // Show initial random quote
-    const initialIndex = getRandomIndex(quotes.length);
-    quotes[initialIndex].style.visibility = 'visible';
-    quotes[initialIndex].classList.add('active');
-    
+    // Set up rotation interval
     setInterval(() => {
-        // Hide all quotes first
-        quotes.forEach(quote => {
-            quote.classList.remove('active');
-            setTimeout(() => {
-                quote.style.visibility = 'hidden';
-            }, 500); // Match the transition duration
-        });
-        
-        // Show new random quote
-        const randomIndex = getRandomIndex(quotes.length);
-        const selectedQuote = quotes[randomIndex];
-        selectedQuote.style.visibility = 'visible';
-        
-        // Use requestAnimationFrame to ensure the visibility change has taken effect
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                selectedQuote.classList.add('active');
-            });
-        });
-    }, 7000); // Increased to 7 seconds for better readability
+        currentIndex = (currentIndex + 1) % quotes.length;
+        showQuote(currentIndex);
+    }, 10000); // 10 seconds between rotations
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -1835,7 +1829,7 @@ async function sendMessage(event) {
                     ${data.related_topics ? `
                         <div class="chat-topics">
                             ${data.related_topics.map(topic => `
-                                <button class="chat-topic-btn" onclick="sendMessage({ preventDefault: () => {}, target: { value: '${topic}' } })">
+                                <button class="chat-topic-btn" onclick="handleTopicClick('${topic}')">
                                     ${topic}
                                 </button>
                             `).join('')}
@@ -1953,7 +1947,8 @@ function formatNumber(number, type = 'price') {
 }
 
 function updateIndexCard(symbol, data) {
-    const card = document.querySelector(`.index-card:has(.index-symbol:contains('${symbol}'))`);
+    // Fix the selector to use standard querySelector
+    const card = document.querySelector(`.index-card .index-symbol[data-symbol="${symbol}"]`)?.closest('.index-card');
     if (!card) return;
 
     const priceChange = data.current - data.open;
@@ -2029,5 +2024,13 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }, 60000); // Refresh every minute
 });
+
+// Add the new topic click handler function
+function handleTopicClick(topic) {
+    const input = document.getElementById('messageInput');
+    input.value = topic;
+    const form = document.getElementById('chatForm');
+    form.dispatchEvent(new Event('submit'));
+}
 </script>
 {% endblock %} 
