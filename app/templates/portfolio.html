@@ -1162,12 +1162,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 values: portfolioData.positions.map(p => p.position_value)
             };
         } else {
-            // Sector view data
+            // Sector view data - with improved sector handling
             const sectorData = {};
+            let unknownTotal = 0;
+            
             portfolioData.positions.forEach(p => {
-                const sector = p.sector || 'Unknown';
-                sectorData[sector] = (sectorData[sector] || 0) + p.position_value;
+                if (!p.sector || p.sector === 'Unknown' || p.sector === 'N/A') {
+                    unknownTotal += p.position_value;
+                } else {
+                    sectorData[p.sector] = (sectorData[p.sector] || 0) + p.position_value;
+                }
             });
+            
+            // Only add unknown sector if it has value
+            if (unknownTotal > 0) {
+                sectorData['Not Classified'] = unknownTotal;
+            }
             
             const sectors = Object.keys(sectorData);
             const sectorValues = sectors.map(s => sectorData[s]);
@@ -1197,7 +1207,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('portfolioAllocationChart');
         if (ctx) {
             allocationChart = new Chart(ctx, {
-                type: 'pie',
+                type: 'doughnut',
                 data: {
                     labels: chartData.labels,
                     datasets: [{
@@ -1226,31 +1236,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         legend: {
                             position: 'right',
                             labels: {
+                                color: '#ffffff',
                                 font: {
                                     family: "'Inter', sans-serif",
                                     size: 14,
-                                    weight: '500'
+                                    weight: '600'
                                 },
                                 padding: 15,
                                 boxWidth: 30,
                                 boxHeight: 30,
-                                color: '#fff',
+                                textStrokeColor: 'rgba(0, 0, 0, 0.75)',
+                                textStrokeWidth: 3,
                                 generateLabels: (chart) => {
                                     const data = chart.data;
                                     if (data.labels.length && data.datasets.length) {
                                         return data.labels.map((label, i) => ({
                                             text: label,
                                             fillStyle: data.datasets[0].backgroundColor[i],
-                                            strokeStyle: data.datasets[0].borderColor,
+                                            strokeStyle: '#ffffff',
                                             lineWidth: 2,
                                             hidden: false,
-                                            index: i
+                                            index: i,
+                                            textAlign: 'left',
+                                            color: '#ffffff'  // Ensure text is white
                                         }));
                                     }
                                     return [];
                                 }
-                            },
-                            onClick: null // Disable legend item clicking
+                            }
                         },
                         tooltip: {
                             backgroundColor: 'rgba(0, 0, 0, 0.8)',
