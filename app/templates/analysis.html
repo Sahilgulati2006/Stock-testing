@@ -685,10 +685,7 @@
             return;
         }
 
-        console.log("Total data points:", stockData.length);
-        console.log("Date range:", stockData[0].Date || stockData[0].date, "to", 
-                   stockData[stockData.length-1].Date || stockData[stockData.length-1].date);
-
+        // Map data
         var dates = stockData.map(item => item.Date || item.date);
         var closes = stockData.map(item => item.Close || item.close);
         var opens = stockData.map(item => item.Open || item.open);
@@ -699,9 +696,9 @@
         var ema50 = stockData.map(item => item.EMA_50);
         var ema100 = stockData.map(item => item.EMA_100);
 
-        // Calculate volume colors
+        // Calculate volume colors based on price change
         var volumeColors = closes.map((close, i) => 
-            (i > 0 ? close >= closes[i-1] ? '#26a69a' : '#ef5350' : '#26a69a')
+            (i > 0 ? close >= closes[i-1] ? 'rgba(0, 255, 127, 0.3)' : 'rgba(255, 82, 82, 0.3)' : 'rgba(0, 255, 127, 0.3)')
         );
 
         // Create traces based on chart type
@@ -711,7 +708,7 @@
             type: 'scatter',
             mode: 'lines',
             name: 'Price',
-            line: { color: '#2196F3', width: 2 }
+            line: { color: '#00ff7f', width: 1.5 }
         } : {
             x: dates,
             open: opens,
@@ -720,8 +717,8 @@
             close: closes,
             type: 'candlestick',
             name: 'OHLC',
-            increasing: { line: { color: '#26a69a' } },
-            decreasing: { line: { color: '#ef5350' } }
+            increasing: { line: { color: '#00ff7f', width: 1 }, fillcolor: 'rgba(0, 255, 127, 0.3)' },
+            decreasing: { line: { color: '#ff5252', width: 1 }, fillcolor: 'rgba(255, 82, 82, 0.3)' }
         };
 
         var traces = [priceTrace];
@@ -735,7 +732,7 @@
                     type: 'scatter',
                     mode: 'lines',
                     name: 'EMA 20',
-                    line: { color: '#ffd700', width: 1 }
+                    line: { color: '#ffeb3b', width: 1 }
                 });
             }
             if (ema50.some(val => val !== null)) {
@@ -745,7 +742,7 @@
                     type: 'scatter',
                     mode: 'lines',
                     name: 'EMA 50',
-                    line: { color: '#ff6b6b', width: 1 }
+                    line: { color: '#ff9800', width: 1 }
                 });
             }
             if (ema100.some(val => val !== null)) {
@@ -755,7 +752,7 @@
                     type: 'scatter',
                     mode: 'lines',
                     name: 'EMA 100',
-                    line: { color: '#4caf50', width: 1 }
+                    line: { color: '#e91e63', width: 1 }
                 });
             }
         }
@@ -780,168 +777,170 @@
                 x: 0,
                 y: 1,
                 orientation: 'h',
-                bgcolor: 'rgba(255,255,255,0.9)',
-                bordercolor: '#E2E2E2',
-                borderwidth: 1
+                bgcolor: 'rgba(30, 30, 30, 0.9)',
+                bordercolor: '#404040',
+                borderwidth: 1,
+                font: { color: '#e0e0e0' }
             },
+            plot_bgcolor: '#1e1e1e',
+            paper_bgcolor: '#1e1e1e',
             xaxis: {
-                title: 'Date',
+                title: '',
                 rangeslider: {
                     visible: true,
-                    thickness: 0.05
+                    thickness: 0.05,
+                    bgcolor: '#1e1e1e',
+                    bordercolor: '#404040'
                 },
-                gridcolor: '#E5E5E5',
-                zerolinecolor: '#E5E5E5',
+                gridcolor: '#2c2c2c',
+                gridwidth: 1,
+                zerolinecolor: '#404040',
                 type: 'date',
                 tickformat: '%Y-%m-%d',
                 range: [
-                    dates[Math.max(0, dates.length - 180)],  // Default to 6 months view
+                    dates[Math.max(0, dates.length - 90)],  // Default to 3 months view
                     dates[dates.length - 1]
                 ],
                 rangeselector: {
                     x: 0,
                     y: 1.1,
                     buttons: [
+                        {count: 1, label: '1D', step: 'day', stepmode: 'backward'},
                         {count: 5, label: '5D', step: 'day', stepmode: 'backward'},
                         {count: 1, label: '1M', step: 'month', stepmode: 'backward'},
                         {count: 3, label: '3M', step: 'month', stepmode: 'backward'},
                         {count: 6, label: '6M', step: 'month', stepmode: 'backward'},
                         {count: 1, label: '1Y', step: 'year', stepmode: 'backward'},
-                        {step: 'all', label: 'Max'}
+                        {step: 'all', label: 'ALL'}
                     ],
-                    bgcolor: 'rgba(255,255,255,0.9)',
-                    bordercolor: '#E2E2E2',
-                    borderwidth: 1
-                }
+                    bgcolor: '#1e1e1e',
+                    activecolor: '#00ff7f',
+                    font: { color: '#e0e0e0' }
+                },
+                tickfont: { color: '#e0e0e0' }
             },
             yaxis: {
-                title: 'Price ($)',
+                title: '',
                 tickprefix: '$',
                 autorange: true,
                 domain: [0.3, 1],
-                gridcolor: '#E5E5E5',
-                zerolinecolor: '#E5E5E5',
+                gridcolor: '#2c2c2c',
+                gridwidth: 1,
+                zerolinecolor: '#404040',
                 rangemode: 'normal',
                 fixedrange: false,
-                autorangeoptions: {
-                    padding: 0.1,
-                    minrange: 10
-                },
-                side: 'right'  // Move price axis to right side
+                side: 'right',
+                tickfont: { color: '#e0e0e0' }
             },
             yaxis2: {
-                title: 'Volume',
+                title: '',
                 domain: [0, 0.2],
                 showticklabels: true,
-                gridcolor: '#E5E5E5',
-                zerolinecolor: '#E5E5E5',
-                side: 'right'  // Move volume axis to right side
+                gridcolor: '#2c2c2c',
+                gridwidth: 1,
+                zerolinecolor: '#404040',
+                side: 'right',
+                tickfont: { color: '#e0e0e0' }
             },
             grid: {
                 rows: 2,
                 columns: 1,
                 pattern: 'independent'
             },
-            margin: { t: 50, b: 20, r: 60, l: 40 },
+            margin: { t: 20, b: 20, r: 60, l: 40 },
             hovermode: 'x unified',
-            plot_bgcolor: '#FFFFFF',
-            paper_bgcolor: '#FFFFFF',
             modebar: {
-                bgcolor: 'rgba(255,255,255,0.9)',
-                color: '#2196F3',
-                activecolor: '#1976D2'
+                bgcolor: 'rgba(30, 30, 30, 0.9)',
+                color: '#e0e0e0',
+                activecolor: '#00ff7f'
             }
         };
 
         // Create the main chart with price and volume
         Plotly.newPlot('priceChart', [...traces, volumeTrace], layout, {
             responsive: true,
-            scrollZoom: {
-                enabled: true,
-                horizontalOnly: true  // Only allow horizontal scroll zoom
-            },
+            scrollZoom: true,
+            displayModeBar: true,
             modeBarButtonsToAdd: [
                 {
-                    name: 'Toggle Fibonacci Mode',
-                    icon: {
-                        width: 24,
-                        height: 24,
-                        path: 'M3,3 H21 V21 H3 V3 M9,15 L15,9 M9,9 L15,15',  // Custom icon
-                    },
+                    name: 'Toggle Crosshair',
+                    icon: Plotly.Icons.drawline,
                     click: function(gd) {
-                        toggleFibonacciMode();
-                    }
-                },
-                {
-                    name: 'Clear Fibonacci',
-                    icon: Plotly.Icons.eraseshape,
-                    click: function(gd) {
-                        clearFibonacciLevels();
+                        var newMode = gd._fullLayout.hovermode === 'x unified' ? 'closest' : 'x unified';
+                        Plotly.relayout(gd, 'hovermode', newMode);
                     }
                 }
             ],
             modeBarButtonsToRemove: [
                 'select2d',
                 'lasso2d',
+                'zoomIn2d',
+                'zoomOut2d',
                 'autoScale2d',
-                'resetScale2d'
+                'resetScale2d',
+                'hoverClosestCartesian',
+                'hoverCompareCartesian'
             ],
             displaylogo: false,
-            doubleClick: false,  // Disable double-click zoom
-            showTips: true,
-            toImageButtonOptions: {
-                format: 'png',
-                filename: `${tickerSymbol}_chart`,
-                height: 800,
-                width: 1200,
-                scale: 2
-            }
+            doubleClick: 'reset+autosize'
         });
 
-        // Add double-click handler for reset
+        // Add hover effect for better price visibility
         var chart = document.getElementById('priceChart');
-        chart.on('plotly_doubleclick', function() {
-            Plotly.relayout(chart, {
-                'xaxis.range': [
-                    dates[Math.max(0, dates.length - 180)],
-                    dates[dates.length - 1]
-                ],
-                'yaxis.autorange': true,
-                'yaxis2.autorange': true
-            });
-        });
-
-        // Improve hover info
         chart.on('plotly_hover', function(data) {
             var point = data.points[0];
+            var hoverInfo = document.createElement('div');
+            hoverInfo.className = 'plotly-hover-info';
+            hoverInfo.style.cssText = `
+                position: fixed;
+                background: rgba(30, 30, 30, 0.9);
+                color: #e0e0e0;
+                padding: 10px;
+                border-radius: 4px;
+                font-size: 12px;
+                z-index: 1000;
+                pointer-events: none;
+                border: 1px solid #404040;
+            `;
+
             if (point.data.type === 'candlestick') {
-                var hoverInfo = document.createElement('div');
-                hoverInfo.className = 'plotly-hover-info';
-                hoverInfo.style.cssText = `
-                    position: fixed;
-                    background: rgba(0,0,0,0.8);
-                    color: white;
-                    padding: 10px;
-                    border-radius: 5px;
-                    font-size: 12px;
-                    z-index: 1000;
-                    pointer-events: none;
-                `;
-                hoverInfo.innerHTML = `
-                    <div><strong>Date:</strong> ${new Date(point.x).toLocaleDateString()}</div>
-                    <div><strong>Open:</strong> $${point.open.toFixed(2)}</div>
-                    <div><strong>High:</strong> $${point.high.toFixed(2)}</div>
-                    <div><strong>Low:</strong> $${point.low.toFixed(2)}</div>
-                    <div><strong>Close:</strong> $${point.close.toFixed(2)}</div>
-                    <div><strong>Volume:</strong> ${point.customdata ? point.customdata.toLocaleString() : 'N/A'}</div>
-                `;
-                document.body.appendChild(hoverInfo);
+                var change = ((point.close - point.open) / point.open * 100).toFixed(2);
+                var changeColor = change >= 0 ? '#00ff7f' : '#ff5252';
                 
-                // Position the hover info near the cursor
-                var event = data.event;
-                hoverInfo.style.left = (event.pageX + 10) + 'px';
-                hoverInfo.style.top = (event.pageY + 10) + 'px';
+                hoverInfo.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 5px;">
+                        ${new Date(point.x).toLocaleDateString()} ${new Date(point.x).toLocaleTimeString()}
+                    </div>
+                    <div style="display: grid; grid-template-columns: auto auto; gap: 5px;">
+                        <div>Open</div><div style="text-align: right;">$${point.open.toFixed(2)}</div>
+                        <div>High</div><div style="text-align: right;">$${point.high.toFixed(2)}</div>
+                        <div>Low</div><div style="text-align: right;">$${point.low.toFixed(2)}</div>
+                        <div>Close</div><div style="text-align: right;">$${point.close.toFixed(2)}</div>
+                        <div>Change</div>
+                        <div style="text-align: right; color: ${changeColor};">${change}%</div>
+                        <div>Volume</div>
+                        <div style="text-align: right;">${point.customdata ? point.customdata.toLocaleString() : 'N/A'}</div>
+                    </div>
+                `;
             }
+
+            document.body.appendChild(hoverInfo);
+            
+            // Position the hover info near the cursor
+            var event = data.event;
+            var x = event.pageX + 10;
+            var y = event.pageY + 10;
+            
+            // Keep the tooltip within the viewport
+            if (x + hoverInfo.offsetWidth > window.innerWidth) {
+                x = event.pageX - hoverInfo.offsetWidth - 10;
+            }
+            if (y + hoverInfo.offsetHeight > window.innerHeight) {
+                y = event.pageY - hoverInfo.offsetHeight - 10;
+            }
+            
+            hoverInfo.style.left = x + 'px';
+            hoverInfo.style.top = y + 'px';
         });
 
         chart.on('plotly_unhover', function() {
@@ -949,6 +948,46 @@
             if (hoverInfo) {
                 hoverInfo.remove();
             }
+        });
+
+        // Add custom crosshair
+        chart.on('plotly_hover', function(data) {
+            var xval = data.points[0].x;
+            var yval = data.points[0].y;
+            
+            Plotly.relayout(chart, {
+                shapes: [{
+                    type: 'line',
+                    x0: xval,
+                    x1: xval,
+                    y0: 0,
+                    y1: 1,
+                    yref: 'paper',
+                    line: {
+                        color: '#404040',
+                        width: 1,
+                        dash: 'dot'
+                    }
+                }, {
+                    type: 'line',
+                    x0: 0,
+                    x1: 1,
+                    y0: yval,
+                    y1: yval,
+                    xref: 'paper',
+                    line: {
+                        color: '#404040',
+                        width: 1,
+                        dash: 'dot'
+                    }
+                }]
+            });
+        });
+
+        chart.on('plotly_unhover', function() {
+            Plotly.relayout(chart, {
+                shapes: []
+            });
         });
     }
 
