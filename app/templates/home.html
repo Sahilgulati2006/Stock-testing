@@ -656,7 +656,7 @@
 <script>
     // Market Indices Functions
     function formatNumber(number, type = 'price') {
-        if (!number || number === 0) return '--';
+        if (number === null || number === undefined) return '--';
         
         if (type === 'price') {
             return new Intl.NumberFormat('en-US', {
