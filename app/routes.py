@@ -523,6 +523,7 @@ def get_portfolio_news():
     """Get latest news for portfolio stocks"""
     try:
         from app.tools import web_search
+        from app.stock_service import StockService
         
         # Load portfolio data from storage
         portfolio_data = storage_service.load_portfolio()
@@ -534,31 +535,60 @@ def get_portfolio_news():
         for position in portfolio_data['positions']:
             ticker = position['ticker']
             try:
-                # Search for recent news about the stock
+                # First try to get news using StockService (which uses Yahoo Finance API)
+                news_items = StockService.get_stock_news(ticker, limit=3)
+                if news_items and not news_items[0]['url'].startswith('#'):
+                    for item in news_items:
+                        news_item = {
+                            'ticker': ticker,
+                            'title': item['title'],
+                            'summary': item['description'],
+                            'url': item['url'],
+                            'date': item['published']
+                        }
+                        all_news.append(news_item)
+                    continue
+
+                # Fallback to web search if Yahoo Finance API doesn't return valid news
                 search_query = f"{ticker} stock market news"
                 news_results = web_search(search_query, explanation=f"Fetching news for {ticker}")
                 
                 # Format the news results
                 if isinstance(news_results, list):
                     for result in news_results:
-                        news_item = {
-                            'ticker': ticker,
-                            'title': result.get('title', f'News about {ticker}'),
-                            'summary': result.get('snippet', 'No summary available'),
-                            'url': result.get('url', '#'),
-                            'date': result.get('date', 'Recent')
-                        }
-                        all_news.append(news_item)
+                        if result.get('url', '#') != '#':  # Only add if we have a valid URL
+                            news_item = {
+                                'ticker': ticker,
+                                'title': result.get('title', f'News about {ticker}'),
+                                'summary': result.get('snippet', 'No summary available'),
+                                'url': result.get('url'),
+                                'date': result.get('date', 'Recent')
+                            }
+                            all_news.append(news_item)
             except Exception as e:
                 print(f"Error fetching news for {ticker}: {str(e)}")
-                # Add a fallback news item
-                all_news.append({
-                    'ticker': ticker,
-                    'title': f'Market updates for {ticker}',
-                    'summary': 'Unable to fetch latest news. Please try again later.',
-                    'url': f'https://finance.yahoo.com/quote/{ticker}',
-                    'date': 'Recent'
-                })
+                # Try one more time with a different search query
+                try:
+                    search_query = f"{ticker} company news latest"
+                    news_results = web_search(search_query, explanation=f"Retrying news fetch for {ticker}")
+                    if isinstance(news_results, list) and news_results and news_results[0].get('url', '#') != '#':
+                        news_item = {
+                            'ticker': ticker,
+                            'title': news_results[0].get('title', f'News about {ticker}'),
+                            'summary': news_results[0].get('snippet', 'No summary available'),
+                            'url': news_results[0].get('url'),
+                            'date': news_results[0].get('date', 'Recent')
+                        }
+                        all_news.append(news_item)
+                except:
+                    # Only add fallback if we couldn't get any real news
+                    all_news.append({
+                        'ticker': ticker,
+                        'title': f'No recent news found for {ticker}',
+                        'summary': 'Please check back later for updates.',
+                        'url': f'https://finance.yahoo.com/quote/{ticker}/news',  # Link to news section instead of main page
+                        'date': 'Recent'
+                    })
         
         return jsonify(all_news)
         
