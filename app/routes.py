@@ -997,33 +997,13 @@ def get_market_indices():
         except Exception as e:
             print(f"Error fetching data from Yahoo Finance: {str(e)}")
         
-        # If we couldn't get any data from Yahoo Finance, use fallback data
+        # If we couldn't get any data from Yahoo Finance, return an error
         if not result:
-            print("Using fallback data for market indices...")
-            
-            # Get current date to determine if it's a weekday
-            current_date = datetime.now()
-            is_weekday = current_date.weekday() < 5  # 0-4 are Monday to Friday
-            
-            # Use different fallback data based on whether it's a weekday or weekend
-            if is_weekday:
-                # For weekdays, use slightly more realistic data with proper high/low values
-                result = {
-                    'SPY': {'current': 500.25, 'open': 493.75, 'high': 502.50, 'low': 492.80, 'volume': 75000000},
-                    'QQQ': {'current': 420.50, 'open': 415.25, 'high': 423.00, 'low': 414.50, 'volume': 45000000},
-                    'DIA': {'current': 375.75, 'open': 372.50, 'high': 377.25, 'low': 371.75, 'volume': 25000000},
-                    'IWM': {'current': 173.25, 'open': 172.50, 'high': 174.00, 'low': 171.75, 'volume': 35000000}
-                }
-            else:
-                # For weekends, use the last known values with proper high/low values
-                result = {
-                    'SPY': {'current': 500.25, 'open': 493.75, 'high': 502.50, 'low': 492.80, 'volume': 75000000},
-                    'QQQ': {'current': 420.50, 'open': 415.25, 'high': 423.00, 'low': 414.50, 'volume': 45000000},
-                    'DIA': {'current': 375.75, 'open': 372.50, 'high': 377.25, 'low': 371.75, 'volume': 25000000},
-                    'IWM': {'current': 173.25, 'open': 172.50, 'high': 174.00, 'low': 171.75, 'volume': 35000000}
-                }
-            
-            print(f"Using fallback data: {result}")
+            print("No data could be retrieved from Yahoo Finance")
+            return jsonify({
+                'error': 'Unable to fetch market indices data. Please try again later.',
+                'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }), 503
         
         # Cache the result
         market_indices_cache['market_indices'] = result
@@ -1034,14 +1014,11 @@ def get_market_indices():
     except Exception as e:
         error_msg = f"Error in get_market_indices: {str(e)}"
         print(error_msg)
-        # Return some default data instead of error to prevent UI from being stuck
-        default_data = {
-            'SPY': {'current': 500.25, 'open': 493.75, 'high': 502.50, 'low': 492.80, 'volume': 75000000},
-            'QQQ': {'current': 420.50, 'open': 415.25, 'high': 423.00, 'low': 414.50, 'volume': 45000000},
-            'DIA': {'current': 375.75, 'open': 372.50, 'high': 377.25, 'low': 371.75, 'volume': 25000000},
-            'IWM': {'current': 173.25, 'open': 172.50, 'high': 174.00, 'low': 171.75, 'volume': 35000000}
-        }
-        return jsonify(default_data)
+        return jsonify({
+            'error': 'An error occurred while fetching market indices data.',
+            'details': str(e),
+            'timestamp': datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        }), 500
 
 @main.route('/api/fibonacci-from-point', methods=['POST'])
 def calculate_fibonacci_from_point():

@@ -771,6 +771,15 @@
             
             if (data.error) {
                 console.error('Error from API:', data.error);
+                // Display error message on all index cards
+                const cards = document.querySelectorAll('.index-card');
+                cards.forEach(card => {
+                    card.querySelector('.index-price').textContent = 'Error';
+                    card.querySelector('.index-change').innerHTML = 
+                        `<i class="fas fa-exclamation-circle"></i> ${data.error}`;
+                    card.querySelector('.index-update-time').textContent = 
+                        `Last updated: ${new Date().toLocaleTimeString()}`;
+                });
                 return;
             }
             
@@ -781,6 +790,15 @@
             });
         } catch (error) {
             console.error('Error fetching market indices:', error);
+            // Display error message on all index cards
+            const cards = document.querySelectorAll('.index-card');
+            cards.forEach(card => {
+                card.querySelector('.index-price').textContent = 'Error';
+                card.querySelector('.index-change').innerHTML = 
+                    '<i class="fas fa-exclamation-circle"></i> Unable to fetch market data';
+                card.querySelector('.index-update-time').textContent = 
+                    `Last updated: ${new Date().toLocaleTimeString()}`;
+            });
         }
     }
 

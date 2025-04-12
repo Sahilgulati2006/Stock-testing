@@ -12,6 +12,44 @@
         font-family: 'Inter', sans-serif;
     }
     
+    /* Chart Legend Styles */
+    .chart-legend {
+        color: #FFFFFF !important;
+    }
+    
+    .chart-legend-text {
+        color: #FFFFFF !important;
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+    }
+    
+    /* Custom Legend Styles */
+    .custom-legend {
+        position: absolute;
+        top: 20px;
+        left: 0;
+        right: 0;
+        text-align: center;
+        color: white !important;
+        font-family: 'Inter', sans-serif;
+        z-index: 10;
+        padding: 10px;
+        margin: 0 20px;
+    }
+    
+    .custom-legend div {
+        display: inline-block;
+        margin: 5px 10px;
+        font-size: 14px;
+        color: white !important;
+    }
+    
+    .custom-legend span {
+        color: white !important;
+        font-weight: 600;
+    }
+    
     /* Quote Banner Styles */
     .quote-banner {
         background: linear-gradient(45deg, #1a1a1a, #2c2c2c);
@@ -650,7 +688,7 @@
                         <button type="button" class="btn btn-sm btn-outline-primary" id="sectorView">By Sector</button>
                     </div>
                 </div>
-                <div class="card-body" style="height: 400px;">
+                <div class="card-body" style="height: 450px;">
                     <canvas id="portfolioAllocationChart"></canvas>
                 </div>
             </div>
@@ -903,6 +941,12 @@ document.addEventListener('DOMContentLoaded', function() {
         if (allocationChart) {
             allocationChart.destroy();
         }
+
+        // Remove existing legend if it exists
+        const existingLegend = document.querySelector('.custom-legend');
+        if (existingLegend) {
+            existingLegend.remove();
+        }
         
         let chartData;
         if (viewType === 'stock') {
@@ -956,6 +1000,10 @@ document.addEventListener('DOMContentLoaded', function() {
         // Create new chart
         const ctx = document.getElementById('portfolioAllocationChart');
         if (ctx) {
+            // Set Chart.js defaults for all charts
+            Chart.defaults.color = 'white';
+            Chart.defaults.font.family = "'Inter', sans-serif";
+            
             allocationChart = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
@@ -978,42 +1026,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         padding: {
                             left: 20,
                             right: 20,
-                            top: 20,
+                            top: 100,  // Initial padding, will be adjusted dynamically
                             bottom: 20
                         }
                     },
                     plugins: {
                         legend: {
-                            position: 'right',
-                            labels: {
-                                color: '#ffffff',
-                                font: {
-                                    family: "'Inter', sans-serif",
-                                    size: 14,
-                                    weight: '600'
-                                },
-                                padding: 15,
-                                boxWidth: 30,
-                                boxHeight: 30,
-                                textStrokeColor: 'rgba(0, 0, 0, 0.75)',
-                                textStrokeWidth: 3,
-                                generateLabels: (chart) => {
-                                    const data = chart.data;
-                                    if (data.labels.length && data.datasets.length) {
-                                        return data.labels.map((label, i) => ({
-                                            text: label,
-                                            fillStyle: data.datasets[0].backgroundColor[i],
-                                            strokeStyle: '#ffffff',
-                                            lineWidth: 2,
-                                            hidden: false,
-                                            index: i,
-                                            textAlign: 'left',
-                                            color: '#ffffff'  // Ensure text is white
-                                        }));
-                                    }
-                                    return [];
-                                }
-                            }
+                            display: false // Completely hide the Chart.js legend
                         },
                         tooltip: {
                             backgroundColor: 'rgba(0, 0, 0, 0.8)',
@@ -1057,6 +1076,41 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 }
             });
+            
+            // Create a custom text-based legend
+            const legendContainer = document.createElement('div');
+            legendContainer.className = 'custom-legend';
+            legendContainer.style.cssText = 'position: absolute; top: 20px; left: 0; right: 0; text-align: center; color: white; font-family: "Inter", sans-serif; z-index: 10; padding: 10px; margin: 0 20px; display: flex; flex-wrap: wrap; justify-content: center;';
+            
+            // Add legend items
+            chartData.labels.forEach((label, i) => {
+                const legendItem = document.createElement('div');
+                legendItem.style.cssText = 'display: inline-flex; align-items: center; margin: 5px 10px; font-size: 14px; color: white;';
+                
+                // Add color indicator
+                const colorIndicator = document.createElement('span');
+                colorIndicator.style.cssText = `display: inline-block; width: 12px; height: 12px; background-color: ${colorPalette[i % colorPalette.length]}; margin-right: 5px; border-radius: 2px;`;
+                
+                // Add text
+                const textSpan = document.createElement('span');
+                textSpan.textContent = label;
+                textSpan.style.cssText = 'color: white; font-weight: 600;';
+                
+                legendItem.appendChild(colorIndicator);
+                legendItem.appendChild(textSpan);
+                legendContainer.appendChild(legendItem);
+            });
+            
+            // Add the legend to the chart container
+            ctx.parentElement.style.position = 'relative';
+            ctx.parentElement.appendChild(legendContainer);
+
+            // Calculate required padding based on legend height
+            setTimeout(() => {
+                const legendHeight = legendContainer.offsetHeight;
+                allocationChart.options.layout.padding.top = legendHeight + 20; // Add 20px buffer
+                allocationChart.update('none'); // Update without animation
+            }, 0);
         }
     }
 });
