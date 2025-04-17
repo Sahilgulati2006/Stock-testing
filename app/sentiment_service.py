@@ -49,7 +49,16 @@ class SentimentService:
             # Measurements and units
             'HIGH', 'LOW', 'BIG', 'TOP', 'DOWN', 'OVER', 'MORE', 'LESS', 'MANY', 'MUCH', 'FULL',
             'HALF', 'PART', 'LATE', 'LONG', 'FAR', 'DEEP', 'FAST', 'SLOW', 'HARD', 'SOFT', 'HOT',
-            'COLD', 'WARM', 'COOL', 'SAFE', 'RICH', 'POOR', 'GOOD', 'BAD'
+            'COLD', 'WARM', 'COOL', 'SAFE', 'RICH', 'POOR', 'GOOD', 'BAD', 'NICE', 'BEAT', 'BULL',
+            # Reddit and internet specific terms
+            'OP', 'IMG', 'OPEN', 'HOPE', 'HIT', 'EDIT', 'MOD', 'MODS', 'NSFW', 'TIL', 'TL', 'DR',
+            'ELI5', 'PSA', 'AMA', 'IMO', 'IMHO', 'FOMO', 'YOLO', 'FUD', 'DD', 'DM', 'PM', 'TBA',
+            'FAQ', 'IAMA', 'ETC', 'FYI', 'FTFY', 'IIRC', 'IRL', 'LOL', 'LMAO', 'AFAIK', 'NGL',
+            'IDK', 'IKR', 'IMO', 'TBH', 'TLDR', 'WTF', 'BTW', 'AKA', 'NVM', 'ASAP', 'FWIW',
+            'ICYMI', 'IIRC', 'IME', 'ITT', 'MFW', 'MRW', 'NSFL', 'OFC', 'OOC', 'OOL', 'OT',
+            'POV', 'SMH', 'TFW', 'TIL', 'YSK', 'TIFU', 'AITA', 'CMV', 'DAE', 'ELI5', 'IANAL',
+            'IFF', 'IWTL', 'JAQ', 'MFA', 'MMW', 'OOT', 'QED', 'RES', 'RIP', 'SRS', 'TRP',
+            'UNBGBBIIVCHIDCTIICBG', 'WCGW', 'WIBTA', 'YTA', 'NTA', 'ESH', 'NAH', 'INFO'
         }
         
         # Stock-related context words that increase confidence
@@ -90,6 +99,7 @@ class SentimentService:
     def _has_stock_context(self, text, ticker):
         """Check if the ticker appears in a stock-related context"""
         text_lower = text.lower()
+        ticker_lower = ticker.lower()
         
         # First check for strong stock indicators
         strong_indicators = [
@@ -98,118 +108,189 @@ class SentimentService:
             rf'(?:buy|sell|short|long)\s+\b{ticker}\b',  # buy/sell/short/long TICKER
             rf'\b{ticker}\s+(?:earnings|dividend|squeeze|breakout|analysis)\b',  # TICKER earnings/dividend/etc
             rf'(?:bullish|bearish)\s+(?:on\s+)?\b{ticker}\b',  # bullish/bearish on TICKER
+            rf'(?:position|holding)s?\s+(?:in\s+)?\b{ticker}\b',  # position(s)/holding(s) in TICKER
+            rf'\b{ticker}\s+(?:to the moon|mooning|dump|pump)',  # Common trading expressions
+            rf'(?:calls|puts)\s+(?:on\s+)?\b{ticker}\b',  # calls/puts on TICKER
         ]
         
         if any(re.search(pattern, text, re.IGNORECASE) for pattern in strong_indicators):
             return True
-            
-        # Check for company name mentions with stock context
-        company_name = self.tickers_data[ticker]
-        company_patterns = [
-            rf'{company_name}.*?(?:stock|share|price|market|trading)',
-            rf'(?:stock|share|price|market|trading).*?{company_name}'
-        ]
         
-        if any(re.search(pattern, text, re.IGNORECASE) for pattern in company_patterns):
-            return True
+        # Check for company name mentions with stock context
+        if ticker in self.tickers_data:
+            company_name = self.tickers_data[ticker].lower()
+            company_words = company_name.split()
             
+            # Only proceed with company name check if the name is meaningful
+            if len(company_words) > 1:  # Skip single-word company names as they might be too generic
+                company_patterns = [
+                    rf'{company_name}.*?(?:stock|share|price|market|trading)',
+                    rf'(?:stock|share|price|market|trading).*?{company_name}'
+                ]
+                
+                if any(re.search(pattern, text_lower) for pattern in company_patterns):
+                    return True
+        
         # Count stock-related context words in the vicinity of the ticker
-        context_window = 50  # characters before and after
-        ticker_pos = text_lower.find(ticker.lower())
-        if ticker_pos != -1:
-            start = max(0, ticker_pos - context_window)
-            end = min(len(text_lower), ticker_pos + len(ticker) + context_window)
+        context_window = 100  # Increased window size
+        ticker_positions = [m.start() for m in re.finditer(rf'\b{ticker_lower}\b', text_lower)]
+        
+        for pos in ticker_positions:
+            start = max(0, pos - context_window)
+            end = min(len(text_lower), pos + len(ticker_lower) + context_window)
             context_text = text_lower[start:end]
             
-            context_word_count = sum(1 for word in self.stock_context if word in context_text)
-            if context_word_count >= 2:  # Require at least 2 context words
+            # Count unique context words
+            context_word_count = len({word for word in self.stock_context if word in context_text})
+            
+            # Require more context words for shorter tickers (which are more likely to be false positives)
+            required_context_words = 3 if len(ticker) <= 2 else 2
+            
+            if context_word_count >= required_context_words:
                 return True
         
         return False
     
+    def _batch_validate_tickers(self, symbols):
+        """
+        Validate multiple stock tickers in a single batch to reduce API calls.
+        Returns a dictionary of {symbol: is_valid} results.
+        """
+        # Filter out already validated tickers
+        to_validate = [s for s in symbols if s not in self.validated_tickers]
+        
+        if not to_validate:
+            return {s: self.validated_tickers[s] for s in symbols}
+            
+        try:
+            # Create a single string of tickers joined by spaces
+            ticker_string = " ".join(to_validate)
+            tickers = yf.Tickers(ticker_string)
+            
+            results = {}
+            for symbol in to_validate:
+                try:
+                    info = tickers.tickers[symbol].info if symbol in tickers.tickers else {}
+                    
+                    # Apply validation checks
+                    is_valid = bool(
+                        info.get('symbol') and
+                        info.get('regularMarketPrice') and
+                        info.get('quoteType') in ['EQUITY', 'ETF'] and
+                        info.get('market') in ['us_market', 'nasdaq_market'] and
+                        not info.get('delistedFromExchange', False)
+                    )
+                except:
+                    is_valid = False
+                    
+                self.validated_tickers[symbol] = is_valid
+                results[symbol] = is_valid
+                
+            return results
+                
+        except Exception:
+            # If batch request fails, mark all as invalid
+            for symbol in to_validate:
+                self.validated_tickers[symbol] = False
+            return {s: False for s in to_validate}
+
     def _extract_stock_mentions(self, text):
         """Extract stock tickers from text with improved accuracy"""
         # Convert text to uppercase for matching
         text_upper = text.upper()
         
-        # Find all potential stock mentions (1-5 capital letters)
-        potential_mentions = re.findall(r'\b[A-Z]{1,5}\b|\$[A-Z]{1,5}\b', text_upper)
+        # Find all potential stock mentions (1-5 capital letters, with optional $ prefix)
+        potential_mentions = re.findall(r'(?:^|\s)\$?([A-Z]{1,5})\b', text_upper)
         
         # Clean potential mentions
         potential_mentions = [m.strip('$') for m in potential_mentions]
         
-        # Filter out common words and validate against NASDAQ tickers
-        valid_mentions = []
-        for mention in potential_mentions:
+        # Initial filtering
+        filtered_mentions = [
+            mention for mention in potential_mentions
             if (mention in self.tickers_nasdaq and 
                 mention not in self.exclude_words and 
-                self._has_stock_context(text, mention)):
-                valid_mentions.append(mention)
+                len(mention) > 1)  # Exclude single-letter tickers
+        ]
         
-        return valid_mentions
+        # Get stock context for all mentions first
+        context_valid_mentions = [
+            mention for mention in filtered_mentions
+            if self._has_stock_context(text, mention)
+        ]
+        
+        # Batch validate all context-valid mentions at once
+        if context_valid_mentions:
+            valid_results = self._batch_validate_tickers(context_valid_mentions)
+            return [ticker for ticker in context_valid_mentions if valid_results.get(ticker, False)]
+        
+        return []
     
     def is_valid_ticker(self, symbol):
         """
-        Check if a symbol is a valid stock ticker by attempting to get its info from yfinance.
-        Caches results to avoid repeated API calls.
+        Check if a symbol is a valid stock ticker using cached results or batch validation.
         """
         if symbol in self.validated_tickers:
             return self.validated_tickers[symbol]
         
-        try:
-            # Skip validation for common non-stock words
-            if symbol in self.exclude_words:
-                self.validated_tickers[symbol] = False
-                return False
-
-            # Try to get stock info
-            stock = yf.Ticker(symbol)
-            info = stock.info
-            
-            # Check if it's a valid stock by verifying essential fields
-            is_valid = bool(
-                info.get('symbol') and  # Must have a symbol
-                info.get('regularMarketPrice') and  # Must have a price
-                info.get('quoteType') in ['EQUITY', 'ETF']  # Must be a stock or ETF
-            )
-            
-            self.validated_tickers[symbol] = is_valid
-            return is_valid
-            
-        except Exception:
+        # Basic validation first
+        if symbol in self.exclude_words or len(symbol) <= 1 or symbol not in self.tickers_nasdaq:
             self.validated_tickers[symbol] = False
             return False
+            
+        # Use batch validation even for single symbol
+        results = self._batch_validate_tickers([symbol])
+        return results.get(symbol, False)
 
     def extract_tickers(self, text):
-        """Extract stock tickers from text and validate them"""
-        # Pattern for stock tickers: $TICKER or just TICKER (all caps, 1-5 characters)
-        pattern = r'\$?([A-Z]{1,5})\b'
-        matches = re.findall(pattern, text)
-        
-        # Filter out common words and validate tickers
-        valid_tickers = [ticker for ticker in matches if self.is_valid_ticker(ticker)]
-        return valid_tickers
+        """Alias for _extract_stock_mentions for backward compatibility"""
+        return self._extract_stock_mentions(text)
     
-    def analyze_subreddit(self, subreddit_name="wallstreetbets"):
+    def analyze_subreddit(self, subreddit_name="wallstreetbets", timeframe="day"):
         """Analyze stock mentions and sentiment in a subreddit"""
         print(f"\nAnalyzing r/{subreddit_name}...")
         
         subreddit = self.reddit.subreddit(subreddit_name)
         
-        # Get posts from the last 24 hours
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        # Calculate cutoff time based on timeframe
+        now = datetime.utcnow()
+        cutoff_time = now
+        if timeframe == "hour":
+            cutoff_time = now - timedelta(hours=1)
+        elif timeframe == "day":
+            cutoff_time = now - timedelta(hours=24)
+        elif timeframe == "week":
+            cutoff_time = now - timedelta(days=7)
+        elif timeframe == "month":
+            cutoff_time = now - timedelta(days=30)
+        elif timeframe == "year":
+            cutoff_time = now - timedelta(days=365)
+        # For "all" timeframe, we don't set a cutoff time
         
-        # Get hot posts
-        hot_posts = subreddit.hot(limit=Config.MAX_REDDIT_POSTS)
+        # Get hot posts with appropriate limit based on timeframe
+        post_limit = 50  # Default limit
+        if timeframe in ["week", "month", "year", "all"]:
+            post_limit = 200  # Increase limit for longer timeframes
+        
+        hot_posts = subreddit.hot(limit=post_limit)
         
         tickers_reddit = []
         stock_sentiments = defaultdict(list)
+        processed_posts = []  # Track processed posts
         
         for post in hot_posts:
-            # Skip posts older than 24 hours
-            if datetime.fromtimestamp(post.created_utc) < cutoff_time:
+            # Skip posts older than cutoff time (except for "all" timeframe)
+            if timeframe != "all" and datetime.fromtimestamp(post.created_utc) < cutoff_time:
                 continue
                 
+            # Store post info
+            processed_posts.append({
+                'title': post.title,
+                'created_utc': post.created_utc,
+                'score': post.score,
+                'num_comments': post.num_comments
+            })
+            
             print(f"\nProcessing post: {post.title[:50]}...")
             
             # Process post title and body
@@ -231,8 +312,8 @@ class SentimentService:
             print("Processing comments...")
             post.comments.replace_more(limit=0)
             for comment in post.comments.list():
-                # Skip comments older than 24 hours
-                if datetime.fromtimestamp(comment.created_utc) < cutoff_time:
+                # Skip comments older than cutoff time (except for "all" timeframe)
+                if timeframe != "all" and datetime.fromtimestamp(comment.created_utc) < cutoff_time:
                     continue
                     
                 comment_text = comment.body.strip()
@@ -249,7 +330,7 @@ class SentimentService:
                         stock_sentiments[ticker].extend(sentiments)
         
         # Count mentions and analyze sentiment
-        top_stocks = Counter(tickers_reddit).most_common(10)
+        top_stocks = Counter(tickers_reddit).most_common(20)
         
         sentiment_results = {}
         for stock, sentiments in stock_sentiments.items():
@@ -274,8 +355,10 @@ class SentimentService:
         return {
             "date": date.today(),
             "subreddit": subreddit_name,
+            "timeframe": timeframe,
             "top_stocks": top_stocks,
-            "sentiment_results": sentiment_results
+            "sentiment_results": sentiment_results,
+            "processed_posts": processed_posts  # Include processed posts in the output
         }
     
     def _analyze_text(self, text):

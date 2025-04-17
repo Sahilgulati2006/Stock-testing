@@ -2,31 +2,250 @@
 
 {% block content %}
 <style>
+:root {
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --dark-bg: #1a1d20;
+    --card-bg: #242729;
+    --text-muted: #6c757d;
+}
+
+body {
+    background-color: var(--dark-bg);
+    color: #fff;
+}
+
+.card {
+    background-color: var(--card-bg);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+.card-header {
+    background-color: rgba(255, 255, 255, 0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px 12px 0 0 !important;
+}
+
 .sentiment-progress {
     display: flex;
     align-items: center;
+    gap: 10px;
 }
+
 .progress-container {
     flex-grow: 1;
-    background-color: #e9ecef;
+    background-color: rgba(255, 255, 255, 0.1);
     height: 8px;
     border-radius: 4px;
+    overflow: hidden;
 }
+
 .progress-bar-custom {
     height: 100%;
-    background-color: #198754;
+    background: linear-gradient(90deg, var(--success-color), #2ecc71);
     border-radius: 4px;
-    transition: width 0.3s ease;
+    transition: width 0.5s ease;
+}
+
+.form-select {
+    background-color: var(--card-bg);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(45deg, var(--primary-color), #4e95ff);
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-weight: 600;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.table {
+    color: #fff;
+}
+
+.table > :not(caption) > * > * {
+    background-color: transparent;
+    border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+.badge {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.stock-link {
+    text-decoration: none;
+    color: var(--primary-color);
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: color 0.2s ease;
+}
+
+.stock-link:hover {
+    color: #4e95ff;
+}
+
+.empty-state {
+    padding: 60px 20px;
+}
+
+.empty-state i {
+    font-size: 4rem;
+    background: linear-gradient(45deg, var(--primary-color), #4e95ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    margin-bottom: 1.5rem;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.hot-badge {
+    animation: pulse 2s infinite;
+}
+
+/* Terminal Output Styles */
+.terminal-section {
+    margin-top: 2rem;
+}
+
+.terminal-output {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    padding: 1.5rem;
+    font-family: 'Courier New', monospace;
+    color: #00ff00;
+    max-height: 300px;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    position: relative;
+}
+
+.terminal-output p {
+    margin: 0;
+    padding: 2px 0;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.terminal-output .processing {
+    color: #ffd700;
+}
+
+.terminal-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 1rem;
+    padding: 0.5rem 1rem;
+    background-color: #2a2a2a;
+    border-radius: 8px 8px 0 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.terminal-header h4 {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.terminal-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background-color: #00ff00;
+    animation: blink 1s infinite;
+}
+
+.terminal-window {
+    background-color: #1e1e1e;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+}
+
+.terminal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px;
+    background-color: #2a2a2a;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.terminal-button {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.terminal-close {
+    background-color: #ff5f56;
+}
+
+.terminal-minimize {
+    background-color: #ffbd2e;
+}
+
+.terminal-maximize {
+    background-color: #27c93f;
+}
+
+.terminal-title {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    margin-left: 1rem;
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.4; }
+    100% { opacity: 1; }
 }
 </style>
 
 <div class="container mt-4">
     <div class="row">
         <div class="col-12 mb-4">
-            <div class="card bg-dark text-white">
-                <div class="card-body py-4">
-                    <h1 class="display-4 mb-3">Reddit Stock Sentiment Analysis</h1>
-                    <p class="lead mb-0">Analyze stock mentions and sentiment from popular investing subreddits</p>
+            <div class="card">
+                <div class="card-body py-5 text-center">
+                    <h1 class="display-4 mb-3 fw-bold">Reddit Stock Sentiment Analysis</h1>
+                    <p class="lead mb-0 text-muted">Discover trending stocks and market sentiment across popular investing communities</p>
                 </div>
             </div>
         </div>
@@ -34,14 +253,14 @@
 
     <div class="row">
         <div class="col-md-4">
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="mb-0">Select Subreddit</h4>
+            <div class="card mb-4">
+                <div class="card-header py-3">
+                    <h4 class="mb-0 fw-bold">Select Community</h4>
                 </div>
                 <div class="card-body">
                     <form method="POST" action="{{ url_for('main.sentiment_analysis') }}">
-                        <div class="mb-3">
-                            <label for="subreddit" class="form-label">Choose a Subreddit</label>
+                        <div class="mb-4">
+                            <label for="subreddit" class="form-label text-muted">Choose a Subreddit</label>
                             <select class="form-select" id="subreddit" name="subreddit" required>
                                 <option value="wallstreetbets">r/wallstreetbets</option>
                                 <option value="stocks">r/stocks</option>
@@ -49,6 +268,17 @@
                                 <option value="stockmarket">r/stockmarket</option>
                                 <option value="options">r/options</option>
                                 <option value="pennystocks">r/pennystocks</option>
+                            </select>
+                        </div>
+                        <div class="mb-4">
+                            <label for="timeframe" class="form-label text-muted">Choose a Timeframe</label>
+                            <select class="form-select" id="timeframe" name="timeframe" required>
+                                <option value="hour">Past Hour</option>
+                                <option value="day" selected>Past 24 Hours</option>
+                                <option value="week">Past Week</option>
+                                <option value="month">Past Month</option>
+                                <option value="year">Past Year</option>
+                                <option value="all">All Time</option>
                             </select>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
@@ -62,8 +292,8 @@
         <div class="col-md-8">
             {% if analysis %}
             <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0">Analysis Results</h4>
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0 fw-bold">Analysis Results</h4>
                     <span class="badge bg-primary">r/{{ analysis.subreddit }}</span>
                 </div>
                 <div class="card-body">
@@ -74,21 +304,21 @@
                                     <th>Stock</th>
                                     <th>Mentions</th>
                                     <th>Sentiment</th>
-                                    <th>Details</th>
+                                    <th>Sentiment Ratio</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for stock, count in analysis.top_stocks %}
                                 <tr>
                                     <td>
-                                        <a href="{{ url_for('main.analyze', ticker=stock) }}" class="btn btn-outline-primary btn-sm">
-                                            <i class="fas fa-chart-line me-1"></i>
+                                        <a href="{{ url_for('main.analyze', ticker=stock) }}" class="stock-link">
+                                            <i class="fas fa-chart-line"></i>
                                             {{ stock }}
                                         </a>
                                         {% if stock in analysis.sentiment_results %}
                                             {% set sentiment = analysis.sentiment_results[stock] %}
                                             {% if sentiment.sentiment == 'Bullish 📈' %}
-                                                <span class="badge bg-success ms-1">Hot 🔥</span>
+                                                <span class="badge bg-success ms-2 hot-badge">Trending 🔥</span>
                                             {% endif %}
                                         {% endif %}
                                     </td>
@@ -113,7 +343,7 @@
                                                 <div class="progress-container">
                                                     <div class="progress-bar-custom" style="width: {{ positive_percent }}%"></div>
                                                 </div>
-                                                <small class="text-muted ms-2">{{ sentiment.positive }}/{{ sentiment.total }}</small>
+                                                <small class="text-muted">{{ sentiment.positive }}/{{ sentiment.total }}</small>
                                             </div>
                                         {% endif %}
                                     </td>
@@ -126,25 +356,60 @@
             </div>
             {% else %}
             <div class="card">
-                <div class="card-body text-center py-5">
-                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
-                    <h5>Select a subreddit to analyze</h5>
-                    <p class="text-muted">Choose from popular investing subreddits to see what stocks are being discussed</p>
+                <div class="card-body empty-state text-center">
+                    <i class="fas fa-chart-line mb-4"></i>
+                    <h4 class="fw-bold mb-3">Ready to Analyze</h4>
+                    <p class="text-muted mb-0">Select a community to discover trending stocks and market sentiment</p>
                 </div>
             </div>
             {% endif %}
         </div>
     </div>
+
+    {% if analysis %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="terminal-section">
+                <div class="terminal-window">
+                    <div class="terminal-toolbar">
+                        <div class="terminal-button terminal-close"></div>
+                        <div class="terminal-button terminal-minimize"></div>
+                        <div class="terminal-button terminal-maximize"></div>
+                        <span class="terminal-title">reddit-sentiment-analysis — /r/{{ analysis.subreddit }}</span>
+                    </div>
+                    <div class="terminal-output" id="terminal-output">
+                        <p style="color: #4e94ce;">➜ Starting analysis for r/{{ analysis.subreddit }}...</p>
+                        {% if analysis.processed_posts %}
+                            {% for post in analysis.processed_posts %}
+                            <p style="color: #00ff00;">$ Processing post: {{ post.title[:100] }}{% if post.title|length > 100 %}...{% endif %}</p>
+                            <p style="color: #ffd700;">  ⟳ Found {{ post.num_comments }} comments to analyze...</p>
+                            {% endfor %}
+                            <p style="color: #4e94ce;">✓ Analysis complete! Found {{ analysis.top_stocks|length }} trending stocks.</p>
+                        {% else %}
+                            <p style="color: #ff6b6b;">No posts were processed. Please try again.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Set the selected subreddit if it was previously chosen
+    // Set selected subreddit
     const urlParams = new URLSearchParams(window.location.search);
     const subreddit = urlParams.get('subreddit');
     if (subreddit) {
         document.getElementById('subreddit').value = subreddit;
+    }
+
+    // Auto-scroll terminal to bottom
+    const terminal = document.getElementById('terminal-output');
+    if (terminal) {
+        terminal.scrollTop = terminal.scrollHeight;
     }
 });
 </script>

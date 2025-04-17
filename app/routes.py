@@ -158,11 +158,19 @@ def analyze():
 def sentiment_analysis():
     if request.method == 'POST':
         subreddit = request.form.get('subreddit', 'wallstreetbets')
+        timeframe = request.form.get('timeframe', 'day')  # Default to past 24 hours
         sentiment_service = SentimentService()
         try:
-            analysis = sentiment_service.analyze_subreddit(subreddit)
+            print(f"\nStarting sentiment analysis for r/{subreddit} with timeframe: {timeframe}")
+            analysis = sentiment_service.analyze_subreddit(subreddit, timeframe=timeframe)
+            
+            # Debug print to verify data
+            print(f"Processed posts: {len(analysis.get('processed_posts', []))}")
+            print(f"Top stocks found: {len(analysis.get('top_stocks', []))}")
+            
             return render_template('sentiment.html', analysis=analysis)
         except Exception as e:
+            print(f"Error in sentiment analysis: {str(e)}")
             return render_template('sentiment.html', error=str(e))
     
     return render_template('sentiment.html')
