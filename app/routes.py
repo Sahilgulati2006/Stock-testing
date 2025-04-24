@@ -559,60 +559,52 @@ def get_portfolio_news():
             ticker = position['ticker']
             try:
                 # First try to get news using StockService (which uses Yahoo Finance API)
-                news_items = StockService.get_stock_news(ticker, limit=3)
-                if news_items and not news_items[0]['url'].startswith('#'):
-                    for item in news_items:
+                news_items = StockService.get_stock_news(ticker, limit=5)  # Increased limit for more news
+                
+                # Filter out invalid news items and ensure we have proper URLs
+                valid_news = [item for item in news_items if item.get('url') and not item['url'].startswith('#')]
+                
+                if valid_news:
+                    for item in valid_news:
                         news_item = {
                             'ticker': ticker,
                             'title': item['title'],
                             'summary': item['description'],
                             'url': item['url'],
-                            'date': item['published']
+                            'date': item['published'],
+                            'source': item.get('source', 'Yahoo Finance')
                         }
                         all_news.append(news_item)
                     continue
 
                 # Fallback to web search if Yahoo Finance API doesn't return valid news
-                search_query = f"{ticker} stock market news"
-                news_results = web_search(search_query, explanation=f"Fetching news for {ticker}")
+                search_query = f"{ticker} stock latest news"
+                news_results = web_search(search_query, explanation=f"Fetching latest news for {ticker}")
                 
                 # Format the news results
                 if isinstance(news_results, list):
-                    for result in news_results:
-                        if result.get('url', '#') != '#':  # Only add if we have a valid URL
+                    for result in news_results[:3]:  # Limit to 3 most recent results
+                        if result.get('url', '#') != '#':
                             news_item = {
                                 'ticker': ticker,
                                 'title': result.get('title', f'News about {ticker}'),
                                 'summary': result.get('snippet', 'No summary available'),
                                 'url': result.get('url'),
-                                'date': result.get('date', 'Recent')
+                                'date': result.get('date', 'Recent'),
+                                'source': result.get('source', 'Web Search')
                             }
                             all_news.append(news_item)
             except Exception as e:
                 print(f"Error fetching news for {ticker}: {str(e)}")
-                # Try one more time with a different search query
-                try:
-                    search_query = f"{ticker} company news latest"
-                    news_results = web_search(search_query, explanation=f"Retrying news fetch for {ticker}")
-                    if isinstance(news_results, list) and news_results and news_results[0].get('url', '#') != '#':
-                        news_item = {
-                            'ticker': ticker,
-                            'title': news_results[0].get('title', f'News about {ticker}'),
-                            'summary': news_results[0].get('snippet', 'No summary available'),
-                            'url': news_results[0].get('url'),
-                            'date': news_results[0].get('date', 'Recent')
-                        }
-                        all_news.append(news_item)
-                except:
-                    # Only add fallback if we couldn't get any real news
-                    all_news.append({
-                        'ticker': ticker,
-                        'title': f'No recent news found for {ticker}',
-                        'summary': 'Please check back later for updates.',
-                        'url': f'https://finance.yahoo.com/quote/{ticker}/news',  # Link to news section instead of main page
-                        'date': 'Recent'
-                    })
+                continue  # Skip to next stock instead of adding fallback message
         
+        # Sort all news by date, most recent first
+        try:
+            all_news.sort(key=lambda x: datetime.strptime(x['date'].split(' UTC')[0], '%Y-%m-%d %H:%M'), reverse=True)
+        except:
+            # If date parsing fails, keep original order
+            pass
+            
         return jsonify(all_news)
         
     except Exception as e:
@@ -622,7 +614,8 @@ def get_portfolio_news():
             'title': 'News Service Temporarily Unavailable',
             'summary': 'We are unable to fetch news at the moment. Please try again later.',
             'url': '#',
-            'date': 'Now'
+            'date': datetime.now().strftime('%Y-%m-%d %H:%M UTC'),
+            'source': 'System'
         }])
 
 @main.route('/api/portfolio/events')
