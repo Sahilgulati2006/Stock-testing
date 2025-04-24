@@ -4,11 +4,13 @@ from datetime import datetime, timedelta
 import yfinance as yf
 from scipy.optimize import minimize
 from app.stock_service import StockService
+from app.postgres_storage_service import PostgresStorageService
 from collections import defaultdict
 
 class PortfolioService:
     def __init__(self):
         self.stock_service = StockService()
+        self.storage_service = PostgresStorageService()
         
     def calculate_portfolio_metrics(self, portfolio_data):
         """Calculate key portfolio metrics"""

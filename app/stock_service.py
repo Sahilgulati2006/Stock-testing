@@ -14,46 +14,28 @@ class StockService:
         """Fetch stock data for the given ticker"""
         def fetch_from_polygon():
             """Helper function to fetch data from Polygon"""
-            max_retries = 3
-            base_delay = 3  # Increased base delay
-            
-            for attempt in range(max_retries):
-                try:
-                    if attempt > 0:
-                        delay = base_delay * (2 ** (attempt - 1))  # 3, 6, 12 seconds
-                        print(f"Polygon API: Retry attempt {attempt + 1}, waiting {delay} seconds...")
-                        time.sleep(delay)
-                    
-                    # Test API connection
-                    client.get_ticker_details(ticker)
-                    print("Polygon API connection successful")
-                    
-                    # Fetch the data
-                    aggs = client.get_aggs(ticker, 1, "day", start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
-                    if not aggs:
-                        raise ValueError("No data returned from Polygon API")
-                    
-                    return pd.DataFrame([{
-                        'Date': datetime.fromtimestamp(a.timestamp/1000),
-                        'Open': a.open,
-                        'High': a.high,
-                        'Low': a.low,
-                        'Close': a.close,
-                        'Volume': a.volume
-                    } for a in aggs]).set_index('Date').sort_index()
-                    
-                except Exception as e:
-                    print(f"Polygon attempt {attempt + 1} failed: {str(e)}")
-                    if "429" in str(e) and attempt < max_retries - 1:
-                        continue
-                    if attempt == max_retries - 1:
-                        raise
-            
-            return None
+            try:
+                # Single attempt to fetch data from Polygon
+                aggs = client.get_aggs(ticker, 1, "day", start_date.strftime('%Y-%m-%d'), end_date.strftime('%Y-%m-%d'))
+                if not aggs:
+                    return None
+                
+                return pd.DataFrame([{
+                    'Date': datetime.fromtimestamp(a.timestamp/1000),
+                    'Open': a.open,
+                    'High': a.high,
+                    'Low': a.low,
+                    'Close': a.close,
+                    'Volume': a.volume
+                } for a in aggs]).set_index('Date').sort_index()
+                
+            except Exception as e:
+                print(f"Polygon API failed: {str(e)}")
+                return None
 
         def fetch_from_yfinance():
             """Helper function to fetch data from Yahoo Finance"""
-            print("\nFalling back to Yahoo Finance API...")
+            print("\nFetching from Yahoo Finance API...")
             # Get extra days for better EMA calculation
             start = start_date - timedelta(days=200)  # Add 200 extra days for better EMA calculation
             data = yf.download(ticker, start=start, end=end_date, progress=False)
@@ -66,19 +48,11 @@ class StockService:
             print(f"\nFetching stock data for {ticker}")
             end_date = datetime.now()
             start_date = end_date - timedelta(days=730)  # Get 2 years of data
-            print(f"Date range: {start_date.date()} to {end_date.date()}")
             
-            # Try Polygon first
-            try:
-                df = fetch_from_polygon()
-                if df is not None and len(df.index) > 0:  # Check if DataFrame is not empty using len
-                    print("Successfully fetched data from Polygon API")
-                else:
-                    print("No data from Polygon, trying Yahoo Finance...")
-                    df = fetch_from_yfinance()
-            except Exception as e:
-                print(f"Polygon API failed: {str(e)}")
-                print("Falling back to Yahoo Finance...")
+            # Try Polygon first, then fall back to Yahoo Finance
+            df = fetch_from_polygon()
+            if df is None or len(df.index) == 0:
+                print("No data from Polygon, using Yahoo Finance...")
                 df = fetch_from_yfinance()
             
             # Verify data quality
@@ -104,9 +78,6 @@ class StockService:
             
         except Exception as e:
             print(f"Error in get_stock_data for {ticker}: {str(e)}")
-            print(f"Exception type: {type(e)}")
-            import traceback
-            print(f"Traceback:\n{traceback.format_exc()}")
             raise ValueError(f"Could not fetch stock data for {ticker}: {str(e)}")
     
     @staticmethod

@@ -5,7 +5,7 @@ from dateutil.relativedelta import relativedelta
 from app.sentiment_service import SentimentService
 from app.stock_service import StockService
 from app.portfolio_service import PortfolioService
-from app.storage_service import StorageService
+from app.postgres_storage_service import PostgresStorageService
 from app.market_sentiment_service import MarketSentimentService
 from app.warren_buffett_ai import WarrenBuffettAI
 from functools import lru_cache
@@ -15,7 +15,7 @@ import time
 main = Blueprint('main', __name__)
 portfolio_service = PortfolioService()
 stock_service = StockService()
-storage_service = StorageService()
+storage_service = PostgresStorageService()
 market_sentiment_service = MarketSentimentService()
 warren_ai = WarrenBuffettAI()
 

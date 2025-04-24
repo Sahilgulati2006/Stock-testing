@@ -1,36 +1,5 @@
 {
-    "positions": [
-        {
-            "ticker": "SPCB",
-            "shares": 62.0,
-            "cost_basis": 8.94
-        },
-        {
-            "ticker": "HOOD",
-            "shares": 5.0,
-            "cost_basis": 39.45
-        },
-        {
-            "ticker": "NBIS",
-            "shares": 34.7,
-            "cost_basis": 32.19
-        },
-        {
-            "ticker": "RKLB",
-            "shares": 65.0,
-            "cost_basis": 22.46
-        },
-        {
-            "ticker": "VRT",
-            "shares": 5.33,
-            "cost_basis": 113.4
-        },
-        {
-            "ticker": "NVDA",
-            "shares": 6.8,
-            "cost_basis": 130.18
-        }
-    ],
+    "positions": [],
     "cash": 0.0,
-    "last_updated": "2025-04-12T16:32:49.649798"
+    "last_updated": "2024-04-12T16:32:49.649798"
 }
