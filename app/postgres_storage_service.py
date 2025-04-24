@@ -206,6 +206,35 @@ class PostgresStorageService:
             print(f"Error getting portfolio history: {str(e)}")
             return []
     
+    def reset_portfolio(self):
+        """Reset the portfolio by removing all positions and history"""
+        try:
+            with self.conn.cursor() as cur:
+                # Get the default portfolio
+                cur.execute("SELECT id FROM portfolios ORDER BY id LIMIT 1")
+                portfolio_id = cur.fetchone()[0]
+                
+                # Delete all positions for this portfolio
+                cur.execute("DELETE FROM positions WHERE portfolio_id = %s", (portfolio_id,))
+                
+                # Delete portfolio history
+                cur.execute("DELETE FROM portfolio_history WHERE portfolio_id = %s", (portfolio_id,))
+                
+                # Update portfolio last updated timestamp
+                cur.execute("""
+                    UPDATE portfolios 
+                    SET updated_at = %s 
+                    WHERE id = %s
+                """, (datetime.now(), portfolio_id))
+                
+                self.conn.commit()
+                return True
+                
+        except Exception as e:
+            print(f"Error resetting portfolio: {str(e)}")
+            self.conn.rollback()
+            return False
+    
     def __del__(self):
         """Close database connection when object is destroyed"""
         if hasattr(self, 'conn'):

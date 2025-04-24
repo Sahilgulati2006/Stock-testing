@@ -259,11 +259,11 @@ def remove_position():
     """Remove a position from the portfolio"""
     try:
         data = request.get_json()
-        ticker = data.get('ticker', '').upper()
+        ticker = data.get('ticker')
         
         if not ticker:
-            return jsonify({'error': 'No ticker provided'}), 400
-        
+            return jsonify({'error': 'Ticker symbol is required'}), 400
+            
         # Load current portfolio
         portfolio_data = storage_service.load_portfolio()
         
@@ -271,12 +271,27 @@ def remove_position():
         portfolio_data['positions'] = [p for p in portfolio_data['positions'] if p['ticker'] != ticker]
         
         # Save updated portfolio
-        storage_service.save_portfolio(portfolio_data)
-        
-        return jsonify({'success': True, 'message': 'Position removed successfully'})
-        
+        if storage_service.save_portfolio(portfolio_data):
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Failed to save portfolio'}), 500
+            
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        print(f"Error removing position: {str(e)}")
+        return jsonify({'error': 'An error occurred while removing the position'}), 500
+
+@main.route('/api/portfolio/reset', methods=['POST'])
+def reset_portfolio():
+    """Reset the portfolio by removing all positions"""
+    try:
+        if storage_service.reset_portfolio():
+            return jsonify({'success': True})
+        else:
+            return jsonify({'error': 'Failed to reset portfolio'}), 500
+            
+    except Exception as e:
+        print(f"Error resetting portfolio: {str(e)}")
+        return jsonify({'error': 'An error occurred while resetting the portfolio'}), 500
 
 @main.route('/api/portfolio/update-position', methods=['POST'])
 def update_position():
