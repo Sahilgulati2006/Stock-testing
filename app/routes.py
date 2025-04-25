@@ -11,6 +11,7 @@ from app.warren_buffett_ai import WarrenBuffettAI
 from functools import lru_cache
 from app.web_search import web_search
 import time
+import pandas as pd
 
 main = Blueprint('main', __name__)
 portfolio_service = PortfolioService()
@@ -674,47 +675,85 @@ def get_portfolio_events():
                     summary = generate_financial_summary(stock_info)
                     
                     # Try to get next earnings date
+                    earnings_date_str = 'Upcoming'
+                    
+                    # First try to get from earningsDate property
                     if 'earningsDate' in stock_info:
                         earnings_timestamp = stock_info['earningsDate']
                         if isinstance(earnings_timestamp, list) and earnings_timestamp:
                             earnings_date = datetime.fromtimestamp(earnings_timestamp[0])
-                            
-                            # Only add if earnings date is in the future
                             if earnings_date > datetime.now():
+                                earnings_date_str = earnings_date.strftime('%B %d, %Y')
                                 quarter = (earnings_date.month-1)//3 + 1
                                 fiscal_year = earnings_date.year
-                                all_events.append({
-                                    'ticker': ticker,
-                                    'type': 'Earnings Call',
-                                    'date': earnings_date.strftime('%Y-%m-%d'),
-                                    'description': f'Q{quarter} {fiscal_year} Earnings Release',
-                                    'details': {
-                                        'event_type': 'Earnings Call',
-                                        'company': company_name,
-                                        'quarter': f'Q{quarter} {fiscal_year}',
-                                        'date': earnings_date.strftime('%B %d, %Y'),
-                                        'time': 'After Market Close',
-                                        'current_eps': f"${eps_data['current_eps']}" if eps_data['current_eps'] != 'N/A' else 'N/A',
-                                        'estimated_eps': f"${eps_data['estimated_eps']}" if eps_data['estimated_eps'] != 'N/A' else 'N/A',
-                                        'eps_growth': f"{eps_data['eps_growth']}%" if eps_data['eps_growth'] != 'N/A' else 'N/A',
-                                        'financial_summary': summary,
-                                        'analyst_targets': analyst_data,
-                                        'key_metrics': {
-                                            'revenue_growth': stock_info.get('revenueGrowth', 'N/A'),
-                                            'profit_margins': stock_info.get('profitMargins', 'N/A'),
-                                            'operating_margins': stock_info.get('operatingMargins', 'N/A'),
-                                            'return_on_equity': stock_info.get('returnOnEquity', 'N/A'),
-                                            'debt_to_equity': stock_info.get('debtToEquity', 'N/A')
-                                        }
-                                    }
-                                })
                     
-                    # Add placeholder if no earnings date found but we have EPS data
-                    elif eps_data['estimated_eps'] != 'N/A':
+                    # If no earnings date found, try calendar
+                    if earnings_date_str == 'Upcoming':
+                        try:
+                            calendar = stock.calendar
+                            print(f"\nDebug - Calendar data for {ticker}:")
+                            print(f"Calendar type: {type(calendar)}")
+                            print(f"Calendar content: {calendar}")
+                            
+                            if calendar is not None and isinstance(calendar, dict):
+                                # Convert dictionary calendar to pandas DataFrame if needed
+                                if 'Earnings Date' in calendar:
+                                    next_earnings = calendar['Earnings Date']
+                                    if isinstance(next_earnings, (list, tuple)) and next_earnings:
+                                        earnings_date = pd.to_datetime(next_earnings[0]).to_pydatetime()
+                                        if earnings_date > datetime.now():
+                                            earnings_date_str = earnings_date.strftime('%B %d, %Y')
+                                            quarter = (earnings_date.month-1)//3 + 1
+                                            fiscal_year = earnings_date.year
+                                elif 'earningsDate' in calendar:
+                                    next_earnings = calendar['earningsDate']
+                                    if isinstance(next_earnings, (list, tuple)) and next_earnings:
+                                        earnings_date = pd.to_datetime(next_earnings[0]).to_pydatetime()
+                                        if earnings_date > datetime.now():
+                                            earnings_date_str = earnings_date.strftime('%B %d, %Y')
+                                            quarter = (earnings_date.month-1)//3 + 1
+                                            fiscal_year = earnings_date.year
+                            elif calendar is not None and hasattr(calendar, 'empty') and not calendar.empty:
+                                # Handle DataFrame calendar (old method)
+                                if 'Earnings Date' in calendar.columns:
+                                    next_earnings = calendar['Earnings Date'].iloc[0]
+                                    if isinstance(next_earnings, (str, datetime)):
+                                        if isinstance(next_earnings, str):
+                                            try:
+                                                earnings_date = datetime.strptime(next_earnings, '%Y-%m-%d')
+                                            except ValueError:
+                                                try:
+                                                    earnings_date = pd.to_datetime(next_earnings).to_pydatetime()
+                                                except:
+                                                    earnings_date = None
+                                        else:
+                                            earnings_date = next_earnings
+                                            
+                                        if earnings_date and earnings_date > datetime.now():
+                                            earnings_date_str = earnings_date.strftime('%B %d, %Y')
+                                            quarter = (earnings_date.month-1)//3 + 1
+                                            fiscal_year = earnings_date.year
+                        except Exception as e:
+                            print(f"Error getting calendar for {ticker}: {str(e)}")
+                            # Try one more method - get earnings date from stock info
+                            try:
+                                if 'nextEarningsDate' in stock_info:
+                                    next_date = stock_info['nextEarningsDate']
+                                    if next_date:
+                                        earnings_date = pd.to_datetime(next_date).to_pydatetime()
+                                        if earnings_date > datetime.now():
+                                            earnings_date_str = earnings_date.strftime('%B %d, %Y')
+                                            quarter = (earnings_date.month-1)//3 + 1
+                                            fiscal_year = earnings_date.year
+                            except Exception as inner_e:
+                                print(f"Error getting nextEarningsDate for {ticker}: {str(inner_e)}")
+                    
+                    # Add event with the determined earnings date
+                    if eps_data['estimated_eps'] != 'N/A':
                         all_events.append({
                             'ticker': ticker,
                             'type': 'EPS Update',
-                            'date': 'Upcoming',
+                            'date': earnings_date_str,
                             'description': f"Est. EPS: ${eps_data['estimated_eps']}",
                             'details': {
                                 'event_type': 'EPS Update',
@@ -730,10 +769,12 @@ def get_portfolio_events():
                                     'operating_margins': stock_info.get('operatingMargins', 'N/A'),
                                     'return_on_equity': stock_info.get('returnOnEquity', 'N/A'),
                                     'debt_to_equity': stock_info.get('debtToEquity', 'N/A')
-                                }
+                                },
+                                'date': earnings_date_str if earnings_date_str != 'Upcoming' else 'TBD',
+                                'quarter': f"Q{quarter} {fiscal_year}" if earnings_date_str != 'Upcoming' else f"Q{(datetime.now().month-1)//3 + 1} {datetime.now().year}"
                             }
                         })
-                        
+                    
                 except Exception as e:
                     print(f"Error getting earnings info for {ticker}: {str(e)}")
                     
