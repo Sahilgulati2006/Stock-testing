@@ -31,7 +31,6 @@
     
     .card-body {
         flex: 1;
-        height: 450px;  /* Change from min-height to fixed height */
         display: flex;
         flex-direction: column;
         overflow: hidden;  /* Prevent content from expanding the container */
@@ -591,52 +590,26 @@
     /* Table styles for events */
     .table-responsive {
         flex: 1;
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;  /* Hide overflow at container level */
+        overflow-y: auto;
+        max-height: 450px;  /* Match the card body height */
     }
 
-    .table {
-        flex: 1;
-        margin-bottom: 0;
+    .table-responsive thead th {
+        position: sticky;
+        top: 0;
+        background: var(--bs-card-bg);
+        z-index: 1;
     }
 
-    .table tbody {
-        display: block;  /* Allow tbody to scroll */
-        overflow-y: auto;  /* Add vertical scrollbar when needed */
-        max-height: 300px;  /* Height for approximately 5 rows */
-    }
-
-    .table thead, .table tbody tr {
-        display: table;
-        width: 100%;
-        table-layout: fixed;  /* Fixed table layout for consistent column widths */
-    }
-
-    .table thead {
-        width: calc(100% - 1em);  /* Adjust for scrollbar width */
-    }
-
-    /* Column widths for the events table */
-    .table th, .table td {
-        width: 20%;  /* Equal width for 5 columns */
+    .table td, .table th {
         padding: 0.75rem;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-
-    /* When there's no data, center the message */
-    .table tbody tr:only-child td {
-        height: auto;  /* Reset height */
+        white-space: normal;  /* Allow text to wrap */
         vertical-align: middle;
     }
 
-    #events-content {
-        overflow: hidden;
-        height: 100%;  /* Fill available space */
-        display: flex;
-        flex-direction: column;
+    .table td:nth-child(4) {
+        max-width: 200px;
+        word-wrap: break-word;
     }
 
     /* Portfolio allocation chart container */
@@ -1535,8 +1508,13 @@ function showEventDetails(detailsStr) {
                             <p><strong>Date:</strong> ${details.date}</p>
                             <p><strong>Time:</strong> ${details.time}</p>
                         </div>
+                        ` : details.date && details.date !== 'TBD' ? `
+                        <div class="col-md-6">
+                            <p><strong>Date:</strong> ${details.date}</p>
+                            <p><strong>Quarter:</strong> ${details.quarter || 'TBD'}</p>
+                        </div>
                         ` : ''}
-                        <div class="col-${details.event_type === 'Earnings Call' ? 'md-6' : '12'}">
+                        <div class="col-${details.event_type === 'Earnings Call' || (details.date && details.date !== 'TBD') ? 'md-6' : '12'}">
                             <p><strong>Current EPS:</strong> ${details.current_eps}</p>
                             <p><strong>Estimated EPS:</strong> ${details.estimated_eps}</p>
                             <p><strong>EPS Growth:</strong> ${details.eps_growth}</p>
